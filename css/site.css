@@ -1,0 +1,48 @@
+/* =========================================================
+   Squarespace Custom Site CSS
+   Loaded site-wide via Code Injection (HEADER)
+   ========================================================= */
+
+/* -----------------------------
+   1. Variables / theme tokens
+   ----------------------------- */
+:root {
+  --brand-primary: #111111;
+  --brand-accent: #c9a227;
+  --brand-bg: #ffffff;
+  --brand-radius: 8px;
+}
+
+/* -----------------------------
+   2. Global typography overrides
+   ----------------------------- */
+body {
+  /* example: tighten default Squarespace line-height */
+  /* line-height: 1.5; */
+}
+
+/* -----------------------------
+   3. Header / nav tweaks
+   ----------------------------- */
+.header {
+  /* example: sticky header shadow on scroll */
+}
+
+/* -----------------------------
+   4. Buttons
+   ----------------------------- */
+.sqs-block-button-element {
+  border-radius: var(--brand-radius);
+}
+
+/* -----------------------------
+   5. Section / page-specific
+      (prefer scoping with body.PAGE-ID selectors,
+      Squarespace adds a unique ID class to <body>)
+   ----------------------------- */
+
+/* -----------------------------
+   6. Mobile overrides
+   ----------------------------- */
+@media (max-width: 640px) {
+}
