@@ -1,52 +1,95 @@
 # Squarespace Custom Code
 
-Personal collection of custom CSS/JS injections and snippets for my Squarespace site(s), version-controlled and served via a free CDN (jsDelivr) so I can inject a single `<script>`/`<link>` tag into Squarespace's Code Injection settings instead of pasting raw code every time I make a change.
+A monorepo of self-contained custom plugins for my Squarespace site(s).
+Each plugin lives in its own folder and is loaded into Squarespace by pointing
+a `<link>` / `<script>` tag at a free CDN (jsDelivr), which mirrors this GitHub
+repo. I edit here, push, tag a version, and update one URL in Squarespace
+instead of pasting raw code every time.
 
-## How this works
+## Why this setup
 
-Squarespace doesn't let you upload arbitrary files, but its **Settings → Advanced → Code Injection** (site-wide) or **Page Settings → Advanced → Page Header/Footer** (per-page) fields accept raw HTML, which means you can point to hosted `.css`/`.js` files with normal `<link>` / `<script>` tags.
-
-This repo is hosted on GitHub → GitHub raw files are auto-mirrored by **jsDelivr**, a free CDN → Squarespace loads the CDN URL. That gives you:
-
-- Version control + history for every tweak
-- Instant rollback (just re-point the tag at an older git tag)
-- One shared file that can be injected across multiple pages/sites
-- No repasting code into Squarespace every time you edit something
+Squarespace won't let you upload files, but its **Code Injection** fields
+(and Code Blocks) accept raw HTML, so you can load hosted `.css` / `.js` with
+normal tags. Serving from a tagged git release gives you version history,
+one-line rollback, and shared code across pages/sites.
 
 ## Structure
 
 ```
 squarespace-custom-code/
-├── css/
-│   └── site.css              # global custom styles
-├── js/
-│   └── site.js                # global custom scripts
-├── snippets/
-│   ├── header-injection.html  # paste into Site-Wide Code Injection > HEADER
-│   └── footer-injection.html  # paste into Site-Wide Code Injection > FOOTER
+├── plugins/
+│   ├── _template/            # copy this to start a new plugin
+│   │   ├── plugin.css
+│   │   ├── plugin.js
+│   │   ├── block.html        # optional: for Code Block plugins
+│   │   └── README.md
+│   └── back-to-top/          # first working plugin
+│       ├── back-to-top.css   # → HEADER injection
+│       ├── back-to-top.js    # → FOOTER injection
+│       └── README.md
 ├── docs/
-│   └── USAGE.md               # step-by-step setup + versioning workflow
-└── pages/                      # optional: per-page overrides, one folder per page
+│   └── USAGE.md              # jsDelivr URLs, versioning, testing, rollback
+├── README.md
+└── LICENSE
 ```
 
-## Quick start
+There is no global `site.css` / `site.js`. Anything site-wide is just a plugin
+you inject site-wide. Anything page-specific is the same plugin injected on
+one page. One model for everything.
 
-1. Edit `css/site.css` and/or `js/site.js`.
-2. Commit and push:
-   ```bash
-   git add -A
-   git commit -m "Tweak header styles"
-   git push
-   ```
-3. (Recommended) Cut a version tag so your live site doesn't break on future edits:
-   ```bash
-   git tag v1.1.0
-   git push --tags
-   ```
-4. In Squarespace, paste the contents of `snippets/header-injection.html` into
-   **Settings → Advanced → Code Injection → HEADER** (replace `YOUR_USERNAME` and the version tag with your own).
+## Each plugin is one folder
 
-Full instructions, jsDelivr URL format, and caching notes are in [`docs/USAGE.md`](docs/USAGE.md).
+- Its own CSS, JS, and (optionally) a `block.html` for Code Block use.
+- CSS classes prefixed `sqcc-<plugin>-` so nothing collides.
+- Enabled/disabled by adding or removing its tag(s) in Squarespace.
+
+## The three injection points
+
+| Where | Squarespace location | Use for |
+| --- | --- | --- |
+| **Header** | Settings → Advanced → Code Injection → HEADER (or per-page) | CSS via `<link>`; pre-script config |
+| **Footer** | Settings → Advanced → Code Injection → FOOTER (or per-page) | JS via `<script defer>` |
+| **Code Block** | Add a Code Block in the page editor | Plugins that render *in place* (widgets, embeds) |
+
+## Versioning
+
+Pin a git tag in your Squarespace URL so a future edit can never silently
+break your live site. Workflow:
+
+```bash
+git add -A
+git commit -m "back-to-top: appear later on long pages"
+git push
+git tag v1.1.0        # bump the version
+git push --tags
+```
+
+Then change `@v1.0.0` → `@v1.1.0` in the Squarespace snippet when you're ready
+for the update. To roll back, point the tag back to the older version. One
+repo-wide semver tag keeps this simple; every injection pins its own tag, so
+bumping only affects the snippets you actually update.
+
+Full URL format, testing against `@main`, cache-busting, and purge instructions
+are in [`docs/USAGE.md`](docs/USAGE.md).
+
+## Quick start (back-to-top)
+
+1. In Squarespace, paste into **HEADER**:
+   ```html
+   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/BenLuker/squarespace-custom-code@v1.0.0/plugins/back-to-top/back-to-top.css">
+   ```
+2. Paste into **FOOTER**:
+   ```html
+   <script src="https://cdn.jsdelivr.net/gh/BenLuker/squarespace-custom-code@v1.0.0/plugins/back-to-top/back-to-top.js" defer></script>
+   ```
+3. Reload your site and scroll down. See [`plugins/back-to-top/README.md`](plugins/back-to-top/README.md) for config.
+
+## Adding a new plugin
+
+1. Copy `plugins/_template` to `plugins/<your-plugin>`.
+2. Rename files, write your CSS/JS, prefix classes with `sqcc-<your-plugin>-`.
+3. Commit, push, tag a release.
+4. Add the plugin's injection snippet in Squarespace.
 
 ## License
 

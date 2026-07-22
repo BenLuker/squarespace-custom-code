@@ -1,0 +1,9 @@
+/* =========================================================
+   Plugin: _template
+   Prefix every selector with .sqcc-<plugin-name>- to avoid
+   collisions with Squarespace's own styles.
+   ========================================================= */
+
+.sqcc-template {
+  /* your styles */
+}
