@@ -51,6 +51,21 @@ one page. One model for everything.
 | **Footer** | Settings → Advanced → Code Injection → FOOTER (or per-page) | JS via `<script defer>` |
 | **Code Block** | Add a Code Block in the page editor | Plugins that render *in place* (widgets, embeds) |
 
+## Configuring a plugin (data attributes)
+
+Plugins are configured entirely from HTML, so there's never any JS to edit in
+Squarespace. A plugin claims its elements with a marker attribute
+`data-sqcc-plugin="<name>"`, and every other `data-*` attribute is one option:
+
+```html
+<div data-sqcc-plugin="back-to-top" data-show-after="600" data-bg="#c9a227"></div>
+```
+
+The script reads these via `el.dataset`, fills in defaults for anything absent,
+and applies them (behavior into the JS, colors/look into CSS variables). This is
+the same pattern the commercial Squarespace plugins use. Each plugin's README
+lists its attribute table; `plugins/_template` shows how to implement it.
+
 ## Versioning
 
 Pin a git tag in your Squarespace URL so a future edit can never silently

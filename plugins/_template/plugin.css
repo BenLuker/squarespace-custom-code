@@ -2,8 +2,13 @@
    Plugin: _template
    Prefix every selector with .sqcc-<plugin-name>- to avoid
    collisions with Squarespace's own styles.
+
+   Prefer exposing "look" options as CSS custom properties that
+   plugin.js sets from data-* attributes, e.g.:
+     .sqcc-template { color: var(--sqcc-template-color, #111); }
+   Then in JS: el.style.setProperty("--sqcc-template-color", opts.color);
    ========================================================= */
 
-.sqcc-template {
+[data-sqcc-plugin="_template"] {
   /* your styles */
 }
