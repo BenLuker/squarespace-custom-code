@@ -1,0 +1,57 @@
+/* =========================================================
+   Plugin: variant-switcher
+
+   Visibility is driven entirely by these rules so there is no flicker:
+   a [data-vs-show] element stays hidden until JS adds .sqcc-vs-on when the
+   current selection matches. We only ever HIDE via CSS (never force a
+   display value), so a matched element keeps whatever layout your theme
+   gave it (block, flex, grid, etc.).
+   ========================================================= */
+
+[data-vs-show]:not(.sqcc-vs-on) {
+  display: none !important;
+}
+[data-vs-hide].sqcc-vs-on {
+  display: none !important;
+}
+
+/* -----------------------------
+   Selector controls (buttons the plugin renders into
+   any element with data-vs-controls="<axis>")
+   ----------------------------- */
+.sqcc-vs-controls {
+  --sqcc-vs-accent: #111111;
+  --sqcc-vs-accent-fg: #ffffff;
+  --sqcc-vs-radius: 999px;
+
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.sqcc-vs-btn {
+  font: inherit;
+  line-height: 1;
+  padding: 0.6em 1.1em;
+  border: 1px solid var(--sqcc-vs-accent);
+  border-radius: var(--sqcc-vs-radius);
+  background: transparent;
+  color: var(--sqcc-vs-accent);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sqcc-vs-btn:hover {
+  background: color-mix(in srgb, var(--sqcc-vs-accent) 12%, transparent);
+}
+
+.sqcc-vs-btn.is-active {
+  background: var(--sqcc-vs-accent);
+  color: var(--sqcc-vs-accent-fg);
+}
+
+.sqcc-vs-btn:focus-visible {
+  outline: 2px solid var(--sqcc-vs-accent);
+  outline-offset: 2px;
+}
