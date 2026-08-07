@@ -1,0 +1,169 @@
+/* =========================================================
+   Plugin: scrolling-banner
+   Infinitely scrolling image banner built from a Squarespace gallery.
+
+   Look is driven by CSS custom properties that scrolling-banner.js sets
+   from data-* attributes:
+     --sqcc-sb-height   banner height
+     --sqcc-sb-gap      gap between images
+     --sqcc-sb-radius   image corner radius
+   Everything is scoped under .sqcc-scrolling-banner so it can't collide
+   with Squarespace's own styles.
+   ========================================================= */
+
+.sqcc-scrolling-banner {
+  --sqcc-sb-height: 200px;
+  --sqcc-sb-gap: 16px;
+  --sqcc-sb-radius: 8px;
+  --sqcc-sb-arrow-bg: rgba(20, 20, 20, 0.55);
+  --sqcc-sb-arrow-fg: #ffffff;
+  --sqcc-sb-fade-size: 64px;
+
+  position: relative;
+  width: 100%;
+  outline: none;
+}
+.sqcc-scrolling-banner:focus-visible {
+  box-shadow: 0 0 0 3px rgba(80, 140, 255, 0.6);
+  border-radius: var(--sqcc-sb-radius);
+}
+
+/* The clipping window */
+.sqcc-scrolling-banner .sqcc-sb-viewport {
+  position: relative;
+  overflow: hidden;
+  height: var(--sqcc-sb-height);
+  cursor: grab;
+  touch-action: pan-y; /* let vertical page scroll through; we handle horizontal */
+  -webkit-user-select: none;
+  user-select: none;
+}
+.sqcc-scrolling-banner.is-dragging .sqcc-sb-viewport {
+  cursor: grabbing;
+}
+
+/* The moving strip */
+.sqcc-scrolling-banner .sqcc-sb-track {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sqcc-sb-gap);
+  height: 100%;
+  will-change: transform;
+  /* No CSS transition: motion is driven frame-by-frame in JS. */
+}
+
+/* Each image */
+.sqcc-scrolling-banner .sqcc-sb-slide {
+  flex: 0 0 auto;
+  height: 100%;
+  display: block;
+  border-radius: var(--sqcc-sb-radius);
+  overflow: hidden;
+  text-decoration: none;
+  -webkit-user-drag: none;
+}
+.sqcc-scrolling-banner .sqcc-sb-img {
+  display: block;
+  height: 100%;
+  width: auto;
+  object-fit: cover;
+  border-radius: var(--sqcc-sb-radius);
+  pointer-events: none; /* clicks/drag handled on the slide/viewport */
+  -webkit-user-drag: none;
+  user-select: none;
+}
+/* Linked slides get a subtle affordance on hover (only when not dragging) */
+.sqcc-scrolling-banner a.sqcc-sb-slide:hover .sqcc-sb-img {
+  filter: brightness(1.05);
+}
+
+/* Avoid a flash of unmeasured layout before JS starts the loop */
+.sqcc-scrolling-banner:not(.is-ready) .sqcc-sb-track {
+  visibility: hidden;
+}
+
+/* ---- Edge fade (optional) ---- */
+.sqcc-scrolling-banner.sqcc-sb-fade .sqcc-sb-viewport {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--sqcc-sb-fade-size),
+    #000 calc(100% - var(--sqcc-sb-fade-size)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--sqcc-sb-fade-size),
+    #000 calc(100% - var(--sqcc-sb-fade-size)),
+    transparent 100%
+  );
+}
+
+/* ---- Arrows ---- */
+.sqcc-scrolling-banner .sqcc-sb-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--sqcc-sb-arrow-bg);
+  color: var(--sqcc-sb-arrow-fg);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.18s ease, background 0.18s ease;
+}
+.sqcc-scrolling-banner:hover .sqcc-sb-arrow,
+.sqcc-scrolling-banner:focus-within .sqcc-sb-arrow {
+  opacity: 1;
+}
+.sqcc-scrolling-banner .sqcc-sb-arrow:hover {
+  background: rgba(20, 20, 20, 0.8);
+}
+.sqcc-scrolling-banner .sqcc-sb-arrow:focus-visible {
+  opacity: 1;
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.sqcc-scrolling-banner .sqcc-sb-arrow-prev { left: 12px; }
+.sqcc-scrolling-banner .sqcc-sb-arrow-next { right: 12px; }
+.sqcc-scrolling-banner .sqcc-sb-arrow svg { display: block; }
+
+/* Touch devices can't hover — keep arrows visible there */
+@media (hover: none) {
+  .sqcc-scrolling-banner .sqcc-sb-arrow { opacity: 1; }
+}
+
+/* ---- Dots ---- */
+.sqcc-scrolling-banner .sqcc-sb-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.sqcc-scrolling-banner .sqcc-sb-dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.25);
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+.sqcc-scrolling-banner .sqcc-sb-dot:hover { background: rgba(20, 20, 20, 0.45); }
+.sqcc-scrolling-banner .sqcc-sb-dot.is-active {
+  background: rgba(20, 20, 20, 0.85);
+  transform: scale(1.25);
+}
+.sqcc-scrolling-banner .sqcc-sb-dot:focus-visible {
+  outline: 2px solid rgba(80, 140, 255, 0.9);
+  outline-offset: 2px;
+}

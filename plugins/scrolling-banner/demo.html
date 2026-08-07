@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>scrolling-banner demo</title>
+
+  <!-- On Squarespace this goes in the HEADER injection -->
+  <link rel="stylesheet" href="scrolling-banner.css" />
+
+  <style>
+    /* demo-only styling, not part of the plugin */
+    body { font-family: system-ui, sans-serif; max-width: 980px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #222; }
+    h1 { margin-bottom: 0.25rem; }
+    h2 { margin-top: 2.5rem; }
+    p.note { color: #666; }
+    .fakepost { margin-top: 1.5rem; }
+    /* This block mimics what a Squarespace gallery renders: <img> with the real
+       URL in data-src (lazy-load), optionally wrapped in an <a> for a link. */
+    .sqs-gallery { display: none; }
+  </style>
+</head>
+<body>
+
+  <h1>scrolling-banner</h1>
+  <p class="note">
+    Drag the banner left/right to scrub — release and the nearest image snaps to
+    the left edge and holds, then it resumes. Hover pauses it. Arrows step one
+    image. The linked images (1, 3, 5) navigate on click but not on drag.
+  </p>
+
+  <!-- ===== SOURCE "GALLERY" (hidden; the plugin reads images from here) ===== -->
+  <!-- On Squarespace you'd just add a real Gallery and give it id="hero-strip". -->
+  <div class="sqs-gallery" id="hero-strip">
+    <a href="https://example.com/post-1"><img data-src="https://picsum.photos/id/1015/800/500" alt="Mountain lake" /></a>
+    <img data-src="https://picsum.photos/id/1025/500/500" alt="Pug in a blanket" />
+    <a href="https://example.com/post-3"><img data-src="https://picsum.photos/id/1039/900/500" alt="Waterfall valley" /></a>
+    <img data-src="https://picsum.photos/id/1043/700/500" alt="City street at night" />
+    <a href="https://example.com/post-5"><img data-src="https://picsum.photos/id/1050/600/500" alt="Snowy peaks" /></a>
+    <img data-src="https://picsum.photos/id/1062/850/500" alt="Beach rocks" />
+    <img data-src="https://picsum.photos/id/1074/650/500" alt="Lion" />
+  </div>
+
+  <!-- ===== THE BANNER (this is the Code Block config element) ===== -->
+  <div
+    data-sqcc-plugin="scrolling-banner"
+    data-gallery="#hero-strip"
+    data-height="200"
+    data-gap="16"
+    data-speed="70"
+    data-align="left"
+    data-align-gap="24"
+    data-controls="true"
+    data-dots="true"
+    data-resume-delay="2500"
+    data-radius="10"
+    data-fade-edges="true"
+    aria-label="Featured posts"
+  ></div>
+
+  <div class="fakepost">
+    <h2>Your blog post title</h2>
+    <p>
+      Regular page content flows below the banner. Resize the window to confirm
+      the loop and snapping recalculate cleanly. Try a touch device or your
+      browser's device emulator to check drag-to-scrub with a finger.
+    </p>
+    <p>
+      Everything above the post is the plugin. On Squarespace, the source gallery
+      would be a normal Gallery block/section (hidden once read), and this banner
+      would sit in a Code Block at the top of the blog layout.
+    </p>
+  </div>
+
+  <!-- On Squarespace this goes in the FOOTER injection -->
+  <script src="scrolling-banner.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!--
+  scrolling-banner — Code Block snippet.
+
+  1. Add a Gallery (Section or Block) to your blog page with the images you want,
+     and note or set its ID (Squarespace: block/section settings → an ID, or wrap
+     it and target it). The simplest: give the gallery an ID like #hero-strip.
+  2. Add a Code Block *where you want the banner to appear* and paste this.
+  3. Point data-gallery at your gallery. The original gallery is hidden and the
+     scrolling banner renders here in its place.
+
+  Replace @v1.0.0 with the tag you want (@main while testing). Every data-*
+  attribute below is optional except the plugin marker — omit one to use its
+  default (defaults shown here).
+-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/BenLuker/squarespace-custom-code@v1.0.0/plugins/scrolling-banner/scrolling-banner.css">
+
+<div
+  data-sqcc-plugin="scrolling-banner"
+  data-gallery="#hero-strip"
+  data-height="200"
+  data-gap="16"
+  data-speed="60"
+  data-direction="left"
+  data-autoplay="true"
+  data-loop="true"
+  data-align="left"
+  data-align-gap="24"
+  data-controls="true"
+  data-dots="false"
+  data-drag="true"
+  data-pause-on-hover="true"
+  data-resume-delay="2500"
+  data-radius="8"
+  data-fade-edges="false"
+  aria-label="Featured images"
+></div>
+
+<script src="https://cdn.jsdelivr.net/gh/BenLuker/squarespace-custom-code@v1.0.0/plugins/scrolling-banner/scrolling-banner.js" defer></script>
