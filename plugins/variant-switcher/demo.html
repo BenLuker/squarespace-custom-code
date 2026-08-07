@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>variant-switcher demo</title>
+
+  <!-- On Squarespace this goes in the HEADER injection -->
+  <link rel="stylesheet" href="variant-switcher.css" />
+
+  <style>
+    /* demo-only styling, not part of the plugin */
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #222; }
+    h1 { margin-bottom: 0.25rem; }
+    .row { margin: 1rem 0; }
+    .label { font-weight: 600; margin-right: 0.5rem; }
+    .card { border: 1px solid #e5e5e5; border-radius: 12px; padding: 1rem 1.25rem; margin: 1rem 0; }
+    img { max-width: 100%; border-radius: 12px; display: block; }
+    .buy { display: inline-block; margin-top: 0.5rem; padding: 0.7em 1.4em; background: #111; color: #fff; border-radius: 999px; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <h1 data-vs-text>{{flavor}} {{form-factor}}</h1>
+  <p data-vs-text>
+    Our {{flavor}} recipe in {{form-factor}} form. Everything on this page
+    updates the moment you change a selection above.
+  </p>
+
+  <!-- ===== SELECTORS ===== -->
+  <div class="row">
+    <span class="label">Form factor</span>
+    <span data-vs-controls="form-factor"></span>
+  </div>
+  <div class="row">
+    <span class="label">Flavor</span>
+    <span data-vs-controls="flavor"></span>
+  </div>
+
+  <!-- ===== IMAGE SWAP (by flavor) ===== -->
+  <img
+    data-vs-image="flavor"
+    data-vs-image-vanilla="https://placehold.co/720x360/f3e9c6/6b5a1e?text=Vanilla"
+    data-vs-image-berry="https://placehold.co/720x360/e7c6d6/7a2148?text=Mixed+Berry"
+    data-vs-image-chocolate="https://placehold.co/720x360/d7c1b0/4a2c1a?text=Chocolate"
+    alt="Product"
+  />
+
+  <!-- ===== WORD SWAP INLINE ===== -->
+  <div class="card" data-vs-text>
+    <strong>Directions.</strong> Add one {{form-factor}} to 8oz of water and
+    stir until the {{flavor}} flavor is fully dissolved.
+  </div>
+
+  <!-- ===== SHOW/HIDE (single axis) ===== -->
+  <div class="card" data-vs-show="form-factor:powder">
+    <strong>Powder tip:</strong> shake in a bottle for a smoother mix.
+  </div>
+  <div class="card" data-vs-show="form-factor:capsule|tablet">
+    <strong>Swallow whole</strong> — do not crush.
+  </div>
+
+  <!-- ===== SHOW/HIDE (both axes must match) ===== -->
+  <div class="card" data-vs-show="form-factor:powder;flavor:chocolate">
+    Limited edition: chocolate powder also works great in warm milk.
+  </div>
+
+  <!-- ===== LINK SWAP (by flavor) ===== -->
+  <a
+    class="buy"
+    data-vs-link="flavor"
+    data-vs-link-vanilla="https://example.com/buy/vanilla"
+    data-vs-link-berry="https://example.com/buy/berry"
+    data-vs-link-chocolate="https://example.com/buy/chocolate"
+    href="#"
+  >Buy {{flavor}}</a>
+  <p data-vs-text style="font-size:0.85rem;color:#888">
+    (button links to: <span id="dbg"></span>)
+  </p>
+
+  <!-- ===== CONFIG (on Squarespace: a Code Block; renders nothing) ===== -->
+  <div
+    data-sqcc-plugin="variant-switcher"
+    data-axes="form-factor,flavor"
+    data-form-factor-options="capsule:Capsule,tablet:Tablet,powder:Powder"
+    data-flavor-options="vanilla:Vanilla,berry:Mixed Berry,chocolate:Chocolate"
+    data-form-factor-default="capsule"
+    data-flavor-default="vanilla"
+    data-remember="true"
+    data-url="true"
+  ></div>
+
+  <!-- On Squarespace this goes in the FOOTER injection -->
+  <script src="variant-switcher.js" defer></script>
+  <script>
+    // demo-only: show the current buy link for verification
+    document.addEventListener("sqcc:variantchange", function () {
+      var a = document.querySelector(".buy");
+      var dbg = document.getElementById("dbg");
+      if (a && dbg) dbg.textContent = a.getAttribute("href");
+    });
+  </script>
+</body>
+</html>
