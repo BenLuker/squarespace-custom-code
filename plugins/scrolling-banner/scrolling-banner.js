@@ -363,14 +363,28 @@
       });
 
       var last = performance.now();
+      var houseKeepingCounter = 0;
       function frame(now) {
         var dt = Math.min(0.05, (now - last) / 1000);
         last = now;
         if (playing && !dragging && !swiper.animating && !(opts.pauseOnHover && hovering)) {
+          // Only setTranslate needs to run every frame — it's a transform,
+          // cheap and GPU-composited. updateProgress/updateActiveIndex/
+          // updateSlidesClasses walk every slide (16+ once padded for loop)
+          // to update classes for pagination/accessibility; doing that at
+          // full frame rate was expensive enough that the browser couldn't
+          // sustain the display's refresh rate and settled into presenting
+          // at half of it — visible as a steady stutter, not just a glitch
+          // at the loop boundary. A ~10/sec refresh is imperceptible for
+          // "which dot is active" but cuts that cost by ~85%.
           swiper.setTranslate(swiper.translate + dir * opts.speed * dt);
-          swiper.updateProgress();
-          swiper.updateActiveIndex();
-          swiper.updateSlidesClasses();
+          houseKeepingCounter++;
+          if (houseKeepingCounter >= 6) {
+            houseKeepingCounter = 0;
+            swiper.updateProgress();
+            swiper.updateActiveIndex();
+            swiper.updateSlidesClasses();
+          }
           // loopFix() re-centers the clone buffer around the current
           // position — necessary once we approach the edge of what's been
           // cloned, but NOT safe to call unconditionally: it visibly
