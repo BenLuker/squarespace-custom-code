@@ -1,6 +1,9 @@
 /* =========================================================
    Plugin: scrolling-banner
-   Infinitely scrolling image banner built from a Squarespace gallery.
+   Infinitely scrolling, edge-to-edge image banner built from a Squarespace
+   gallery, powered by Swiper (swiper-bundle.min.css, loaded automatically by
+   scrolling-banner.js). This file only skins Swiper's own markup and adds the
+   full-bleed breakout — Swiper handles layout/transform/touch-action itself.
 
    Look is driven by CSS custom properties that scrolling-banner.js sets
    from data-* attributes:
@@ -8,7 +11,7 @@
      --sqcc-sb-gap      gap between images
      --sqcc-sb-radius   image corner radius
    Everything is scoped under .sqcc-scrolling-banner so it can't collide
-   with Squarespace's own styles.
+   with Squarespace's own styles or other Swiper instances on the page.
    ========================================================= */
 
 .sqcc-scrolling-banner {
@@ -28,33 +31,33 @@
   border-radius: var(--sqcc-sb-radius);
 }
 
-/* The clipping window */
-.sqcc-scrolling-banner .sqcc-sb-viewport {
+/* Stretch past the content column, edge to edge (opt out with data-full-bleed="false") */
+.sqcc-scrolling-banner.sqcc-sb-full-bleed {
+  width: 100vw;
   position: relative;
-  overflow: hidden;
-  height: var(--sqcc-sb-height);
-  cursor: grab;
-  touch-action: pan-y; /* let vertical page scroll through; we handle horizontal */
-  -webkit-user-select: none;
-  user-select: none;
-}
-.sqcc-scrolling-banner.is-dragging .sqcc-sb-viewport {
-  cursor: grabbing;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
 }
 
-/* The moving strip */
-.sqcc-scrolling-banner .sqcc-sb-track {
-  display: flex;
+/* The Swiper instance (clipping window + track) */
+.sqcc-scrolling-banner .sqcc-sb-swiper {
+  height: var(--sqcc-sb-height);
+}
+.sqcc-scrolling-banner .swiper-wrapper {
   align-items: stretch;
-  gap: var(--sqcc-sb-gap);
-  height: 100%;
-  will-change: transform;
-  /* No CSS transition: motion is driven frame-by-frame in JS. */
+  /* No CSS transition on the wrapper itself: continuous auto-scroll is driven
+     frame-by-frame in JS; Swiper applies its own transition only for
+     slideTo-driven moves (arrows/dots/snap). */
 }
 
 /* Each image */
-.sqcc-scrolling-banner .sqcc-sb-slide {
-  flex: 0 0 auto;
+.sqcc-scrolling-banner .swiper-slide {
+  width: auto;
+  height: 100%;
+}
+.sqcc-scrolling-banner .sqcc-sb-slide-inner {
   height: 100%;
   display: block;
   border-radius: var(--sqcc-sb-radius);
@@ -68,22 +71,22 @@
   width: auto;
   object-fit: cover;
   border-radius: var(--sqcc-sb-radius);
-  pointer-events: none; /* clicks/drag handled on the slide/viewport */
+  pointer-events: none; /* clicks/drag handled by Swiper on the slide */
   -webkit-user-drag: none;
   user-select: none;
 }
 /* Linked slides get a subtle affordance on hover (only when not dragging) */
-.sqcc-scrolling-banner a.sqcc-sb-slide:hover .sqcc-sb-img {
+.sqcc-scrolling-banner a.sqcc-sb-slide-inner:hover .sqcc-sb-img {
   filter: brightness(1.05);
 }
 
-/* Avoid a flash of unmeasured layout before JS starts the loop */
-.sqcc-scrolling-banner:not(.is-ready) .sqcc-sb-track {
+/* Avoid a flash of unmeasured layout before Swiper + JS finish setup */
+.sqcc-scrolling-banner:not(.is-ready) .swiper-wrapper {
   visibility: hidden;
 }
 
 /* ---- Edge fade (optional) ---- */
-.sqcc-scrolling-banner.sqcc-sb-fade .sqcc-sb-viewport {
+.sqcc-scrolling-banner.sqcc-sb-fade .sqcc-sb-swiper {
   -webkit-mask-image: linear-gradient(
     to right,
     transparent 0,
@@ -100,7 +103,7 @@
   );
 }
 
-/* ---- Arrows ---- */
+/* ---- Arrows (our own buttons; Swiper only wires click + disabled state) ---- */
 .sqcc-scrolling-banner .sqcc-sb-arrow {
   position: absolute;
   top: 50%;
@@ -132,6 +135,10 @@
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
+.sqcc-scrolling-banner .sqcc-sb-arrow.swiper-button-disabled {
+  opacity: 0;
+  pointer-events: none;
+}
 .sqcc-scrolling-banner .sqcc-sb-arrow-prev { left: 12px; }
 .sqcc-scrolling-banner .sqcc-sb-arrow-next { right: 12px; }
 .sqcc-scrolling-banner .sqcc-sb-arrow svg { display: block; }
@@ -141,29 +148,30 @@
   .sqcc-scrolling-banner .sqcc-sb-arrow { opacity: 1; }
 }
 
-/* ---- Dots ---- */
-.sqcc-scrolling-banner .sqcc-sb-dots {
+/* ---- Dots (Swiper's pagination module builds the bullets; we restyle them) ---- */
+.sqcc-scrolling-banner .sqcc-sb-dots.swiper-pagination {
+  position: static;
   display: flex;
   justify-content: center;
   gap: 8px;
   margin-top: 12px;
 }
-.sqcc-scrolling-banner .sqcc-sb-dot {
+.sqcc-scrolling-banner .swiper-pagination-bullet {
   width: 8px;
   height: 8px;
-  padding: 0;
-  border: none;
+  margin: 0;
+  opacity: 1;
   border-radius: 999px;
   background: rgba(20, 20, 20, 0.25);
   cursor: pointer;
   transition: background 0.18s ease, transform 0.18s ease;
 }
-.sqcc-scrolling-banner .sqcc-sb-dot:hover { background: rgba(20, 20, 20, 0.45); }
-.sqcc-scrolling-banner .sqcc-sb-dot.is-active {
+.sqcc-scrolling-banner .swiper-pagination-bullet:hover { background: rgba(20, 20, 20, 0.45); }
+.sqcc-scrolling-banner .swiper-pagination-bullet-active {
   background: rgba(20, 20, 20, 0.85);
   transform: scale(1.25);
 }
-.sqcc-scrolling-banner .sqcc-sb-dot:focus-visible {
+.sqcc-scrolling-banner .swiper-pagination-bullet:focus-visible {
   outline: 2px solid rgba(80, 140, 255, 0.9);
   outline-offset: 2px;
 }

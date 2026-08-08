@@ -1,8 +1,11 @@
 /**
  * Plugin: scrolling-banner
- * An infinitely scrolling image banner (marquee) built from an existing
- * Squarespace gallery. It auto-scrolls; grab-and-drag to scrub to any image and
- * it snaps that image to the active edge, holds for a beat, then resumes.
+ * An infinitely scrolling, edge-to-edge image banner built from an existing
+ * Squarespace gallery, meant to sit as the first Section on a Page (title
+ * hidden) so it renders full-bleed and behind a transparent/fixed site header.
+ * It auto-scrolls continuously; grab-and-drag to scrub, and release either
+ * snaps the nearest image to the active edge or glides to a natural stop via
+ * momentum, depending on data-snap.
  *
  * HOW IT WORKS
  *   You drop a Gallery (Section or Block) on the page for the images, then add a
@@ -11,10 +14,14 @@
  *     <div data-sqcc-plugin="scrolling-banner" data-gallery="#hero-strip"></div>
  *
  *   The script reads every image out of that gallery (URL, link, alt), hides the
- *   original gallery, and renders the banner inside the config element. One set
- *   of slides is measured, then cloned enough times to loop seamlessly. Motion is
- *   a single requestAnimationFrame loop translating the track; looping is a modulo
- *   over one set's width, so it never hits an end.
+ *   original gallery, and renders the banner inside the config element as a
+ *   Swiper (https://swiperjs.com) instance — Swiper is loaded from jsDelivr at
+ *   runtime if it isn't already on the page, so the Squarespace install stays a
+ *   single link/div/script snippet. Swiper's `loop` mode handles seamless
+ *   wrapping and its `freeMode` (with momentum) handles drag-and-glide; this
+ *   file adds a small requestAnimationFrame loop on top for the continuous
+ *   idle auto-scroll, which Swiper doesn't provide natively (its own autoplay
+ *   module advances slide-to-slide on a delay, not a constant-speed marquee).
  *
  * OPTIONS  (every data-* is optional; see ./README.md for the full table)
  *   data-gallery         CSS selector of the source gallery (default: first gallery found)
@@ -25,95 +32,30 @@
  *   data-direction       "left" | "right" (default left)
  *   data-autoplay        auto-scroll on/off — "Automatically transition" (default true)
  *   data-loop            infinite scrolling on/off (default true)
- *   data-align           active alignment on snap: "left" | "center" | "right" (default left)
- *   data-align-gap       spacing from the active edge when anchored, px (default 24)
+ *   data-align           active alignment: "left" | "center" | "right" (default left)
+ *   data-align-gap       spacing from the active edge when left/right-aligned, px (default 24)
  *   data-controls        show next/previous arrows (default true)
  *   data-dots            show pagination dots (default false)
- *   data-drag            enable click-drag scrubbing (default true)
- *   data-pause-on-hover  pause auto-scroll while hovered (default true)
- *   data-resume-delay    ms to hold on an image after interaction before resuming (default 2500)
- *   data-radius          image corner radius in px (default 8)
- *   data-fade-edges      fade the left/right edges (default false)
+ *   data-drag             enable click-drag scrubbing (default true)
+ *   data-snap             release snaps nearest image to the active edge; false = free
+ *                          glide to a stop via momentum, no forced alignment (default true)
+ *   data-pause-on-hover   pause auto-scroll while hovered (default true)
+ *   data-resume-delay     ms to hold after interaction before auto-scroll resumes (default 2500)
+ *   data-radius           image corner radius in px (default 8)
+ *   data-fade-edges       fade the left/right edges (default false)
+ *   data-full-bleed       stretch edge-to-edge past the content column, 100vw (default true)
  */
 (function () {
   "use strict";
 
   var PLUGIN = "scrolling-banner";
-
-  /* =========================================================================
-   * PURE GEOMETRY  (no DOM — unit-tested in node via module.exports below)
-   * All positions are in "track pixels". `offset` is how far the track has
-   * scrolled: a track point at x maps to screen x = x - offset.
-   * ========================================================================= */
-
-  // Keep offset inside [0, setWidth) so the modular track stays in range.
-  function wrap(offset, setWidth) {
-    if (!(setWidth > 0)) return 0;
-    var m = offset % setWidth;
-    return m < 0 ? m + setWidth : m;
-  }
-
-  // Screen x where slide i's left edge should land, given alignment.
-  // viewport = visible width, w = that slide's width.
-  function anchorX(align, alignGap, viewport, w) {
-    if (align === "center") return Math.max(0, (viewport - w) / 2);
-    if (align === "right") return Math.max(0, viewport - w - alignGap);
-    return alignGap; // left
-  }
-
-  // Offset (unwrapped, nearest to `ref`) that anchors slide i.
-  //   lefts[i]  = left edge of slide i within one set
-  //   widths[i] = width of slide i
-  function offsetForIndex(i, lefts, widths, align, alignGap, viewport, setWidth, ref) {
-    var base = lefts[i] - anchorX(align, alignGap, viewport, widths[i]);
-    return nearestPeriodic(base, ref || 0, setWidth);
-  }
-
-  // Return `base + k*period` closest to `ref`.
-  function nearestPeriodic(base, ref, period) {
-    if (!(period > 0)) return base;
-    var k = Math.round((ref - base) / period);
-    return base + k * period;
-  }
-
-  // Which slide is currently closest to the active anchor, for arrow stepping.
-  function activeIndex(offset, lefts, widths, align, alignGap, viewport, setWidth) {
-    var best = 0, bestDist = Infinity;
-    for (var i = 0; i < lefts.length; i++) {
-      var target = wrap(lefts[i] - anchorX(align, alignGap, viewport, widths[i]), setWidth);
-      var d = Math.abs(shortestGap(wrap(offset, setWidth), target, setWidth));
-      if (d < bestDist) { bestDist = d; best = i; }
-    }
-    return best;
-  }
-
-  // Signed shortest distance from a to b on a ring of circumference period.
-  function shortestGap(a, b, period) {
-    var d = b - a;
-    d = ((d % period) + period) % period;
-    if (d > period / 2) d -= period;
-    return d;
-  }
-
-  var GEO = {
-    wrap: wrap,
-    anchorX: anchorX,
-    nearestPeriodic: nearestPeriodic,
-    shortestGap: shortestGap,
-    offsetForIndex: offsetForIndex,
-    activeIndex: activeIndex,
-  };
-
-  // In node (tests) there's no document — export and stop.
-  if (typeof module !== "undefined" && module.exports) {
-    module.exports = GEO;
-    if (typeof document === "undefined") return;
-  }
+  var SWIPER_VERSION = "14.1.0";
+  var SWIPER_JS = "https://cdn.jsdelivr.net/npm/swiper@" + SWIPER_VERSION + "/swiper-bundle.min.js";
+  var SWIPER_CSS = "https://cdn.jsdelivr.net/npm/swiper@" + SWIPER_VERSION + "/swiper-bundle.min.css";
 
   /* =========================================================================
    * OPTIONS
    * ========================================================================= */
-  function asStr(v) { return v; }
   function asInt(v, d) { var n = parseInt(v, 10); return isNaN(n) ? d : n; }
   function asNum(v, d) { var n = parseFloat(v); return isNaN(n) ? d : n; }
   function asBool(v) { return v === "true" || v === "" || v === "1" || v === "yes"; }
@@ -135,15 +77,17 @@
       controls: d.controls != null ? asBool(d.controls) : true,
       dots: d.dots != null ? asBool(d.dots) : false,
       drag: d.drag != null ? asBool(d.drag) : true,
+      snap: d.snap != null ? asBool(d.snap) : true,
       pauseOnHover: d.pauseOnHover != null ? asBool(d.pauseOnHover) : true,
       resumeDelay: asInt(d.resumeDelay, 2500),
       radius: asInt(d.radius, 8),
       fadeEdges: d.fadeEdges != null ? asBool(d.fadeEdges) : false,
+      fullBleed: d.fullBleed != null ? asBool(d.fullBleed) : true,
     };
   }
 
   /* =========================================================================
-   * READING THE SOURCE GALLERY
+   * READING THE SOURCE GALLERY  (unchanged from v1)
    * ========================================================================= */
   function bestSrc(img) {
     // Squarespace lazy-loads: the real URL usually lives in data-src.
@@ -198,10 +142,47 @@
   }
 
   /* =========================================================================
+   * LOAD SWIPER (once, on demand)
+   * ========================================================================= */
+  function ensureSwiper(cb) {
+    if (window.Swiper) return cb();
+    if (window.__sqccSwiperLoading) {
+      window.__sqccSwiperCallbacks.push(cb);
+      return;
+    }
+    window.__sqccSwiperLoading = true;
+    window.__sqccSwiperCallbacks = [cb];
+
+    if (!document.querySelector('link[href="' + SWIPER_CSS + '"]')) {
+      var link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = SWIPER_CSS;
+      document.head.appendChild(link);
+    }
+    var script = document.createElement("script");
+    script.src = SWIPER_JS;
+    script.onload = function () {
+      var cbs = window.__sqccSwiperCallbacks || [];
+      window.__sqccSwiperCallbacks = [];
+      cbs.forEach(function (fn) { fn(); });
+    };
+    document.head.appendChild(script);
+  }
+
+  /* =========================================================================
    * BUILD + RUN ONE BANNER
    * ========================================================================= */
   function build(configEl, opts, slidesData) {
     configEl.style.display = "";
+
+    // Swiper's loop mode needs a comfortably large real slide set to clone
+    // from — a small gallery on a wide viewport isn't enough on its own
+    // (Swiper warns and disables looping rather than duplicating for you).
+    // Repeat the set until there's plenty, same idea as v1's manual cloning.
+    // Note: if data-dots is also on, dot count reflects this padded count,
+    // not the original unique image count — a known tradeoff for small
+    // galleries with loop + dots both enabled.
+    if (opts.loop) slidesData = padForLoop(slidesData);
 
     // ---- DOM ----
     var root = document.createElement("div");
@@ -209,28 +190,27 @@
     root.setAttribute("role", "region");
     root.setAttribute("aria-roledescription", "carousel");
     root.setAttribute("aria-label", configEl.getAttribute("aria-label") || "Image banner");
-    root.tabIndex = 0;
     root.style.setProperty("--sqcc-sb-height", opts.height + "px");
     root.style.setProperty("--sqcc-sb-gap", opts.gap + "px");
     root.style.setProperty("--sqcc-sb-radius", opts.radius + "px");
     if (opts.fadeEdges) root.classList.add("sqcc-sb-fade");
-    root.classList.add("sqcc-sb-align-" + opts.align);
+    if (opts.fullBleed) root.classList.add("sqcc-sb-full-bleed");
 
-    var viewportEl = document.createElement("div");
-    viewportEl.className = "sqcc-sb-viewport";
+    var swiperEl = document.createElement("div");
+    swiperEl.className = "swiper sqcc-sb-swiper";
+    var wrapperEl = document.createElement("div");
+    wrapperEl.className = "swiper-wrapper";
+    swiperEl.appendChild(wrapperEl);
+    root.appendChild(swiperEl);
 
-    var track = document.createElement("div");
-    track.className = "sqcc-sb-track";
-    viewportEl.appendChild(track);
-    root.appendChild(viewportEl);
-
-    // Build ONE set of slides.
     function makeSlide(data) {
-      var slide = document.createElement(data.href ? "a" : "div");
-      slide.className = "sqcc-sb-slide";
+      var slide = document.createElement("div");
+      slide.className = "swiper-slide sqcc-sb-slide";
+      var inner = document.createElement(data.href ? "a" : "div");
+      inner.className = "sqcc-sb-slide-inner";
       if (data.href) {
-        slide.href = data.href;
-        slide.setAttribute("draggable", "false");
+        inner.href = data.href;
+        inner.setAttribute("draggable", "false");
       }
       var img = document.createElement("img");
       img.className = "sqcc-sb-img";
@@ -238,13 +218,14 @@
       img.alt = data.alt;
       img.setAttribute("draggable", "false");
       img.loading = "eager";
-      slide.appendChild(img);
+      inner.appendChild(img);
+      slide.appendChild(inner);
       return slide;
     }
-    slidesData.forEach(function (data) { track.appendChild(makeSlide(data)); });
+    slidesData.forEach(function (data) { wrapperEl.appendChild(makeSlide(data)); });
 
     // Controls
-    var prevBtn, nextBtn, dotsWrap;
+    var prevBtn, nextBtn, dotsEl;
     if (opts.controls) {
       prevBtn = ctrlButton("prev", "Previous");
       nextBtn = ctrlButton("next", "Next");
@@ -252,21 +233,20 @@
       root.appendChild(nextBtn);
     }
     if (opts.dots) {
-      dotsWrap = document.createElement("div");
-      dotsWrap.className = "sqcc-sb-dots";
-      slidesData.forEach(function (_, i) {
-        var dot = document.createElement("button");
-        dot.type = "button";
-        dot.className = "sqcc-sb-dot";
-        dot.setAttribute("aria-label", "Go to image " + (i + 1));
-        dot.addEventListener("click", function () { userSnapTo(i); });
-        dotsWrap.appendChild(dot);
-      });
-      root.appendChild(dotsWrap);
+      dotsEl = document.createElement("div");
+      dotsEl.className = "sqcc-sb-dots swiper-pagination";
+      root.appendChild(dotsEl);
     }
 
     configEl.innerHTML = "";
     configEl.appendChild(root);
+
+    // Swiper measures slide widths at init (slidesPerView:"auto" reads each
+    // image's rendered width) — wait for images to load first, or every
+    // slide measures near-zero and Swiper's loop math falls apart.
+    whenImagesReady(wrapperEl, function () {
+      initSwiper();
+    });
 
     function ctrlButton(dir, label) {
       var b = document.createElement("button");
@@ -277,235 +257,104 @@
         '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
         '<path d="' + (dir === "prev" ? "M15 5l-7 7 7 7" : "M9 5l7 7-7 7") +
         '" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      b.addEventListener("click", function () { step(dir === "next" ? 1 : -1); });
       return b;
     }
 
-    /* ---- geometry state ---- */
-    var lefts = [], widths = [], setWidth = 0, viewportW = 0;
-    var n = slidesData.length;
+    function initSwiper() {
+      // ---- Swiper instance: handles loop cloning, drag, momentum/snap, nav, dots ----
+      var swiper = new window.Swiper(swiperEl, {
+        loop: opts.loop,
+        slidesPerView: "auto",
+        spaceBetween: opts.gap,
+        speed: 420,
+        grabCursor: true,
+        allowTouchMove: opts.drag,
+        centeredSlides: opts.align === "center",
+        slidesOffsetBefore: opts.align === "left" ? opts.alignGap : 0,
+        slidesOffsetAfter: opts.align === "right" ? opts.alignGap : 0,
+        freeMode: {
+          enabled: true,
+          momentum: true,
+          sticky: opts.snap, // true = snap nearest slide on release; false = pure momentum glide
+        },
+        navigation: opts.controls ? { nextEl: nextBtn, prevEl: prevBtn } : false,
+        pagination: opts.dots ? { el: dotsEl, clickable: true } : false,
+        keyboard: { enabled: true, onlyInViewport: true },
+        a11y: { enabled: true },
+      });
 
-    function measure() {
-      viewportW = viewportEl.clientWidth;
-      var slides = track.querySelectorAll(".sqcc-sb-slide");
-      lefts = []; widths = [];
-      var x = 0;
-      for (var i = 0; i < n; i++) {
-        var w = slides[i].getBoundingClientRect().width;
-        lefts.push(x);
-        widths.push(w);
-        x += w + opts.gap;
+      /* ---- continuous idle auto-scroll (the one thing Swiper doesn't do) ---- */
+      var playing = opts.autoplay;
+      var hovering = false;
+      var dragging = false;
+      var resumeTimer = null;
+      var dir = opts.direction === "right" ? 1 : -1;
+
+      function cancelResume() {
+        if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null; }
       }
-      setWidth = x; // includes trailing gap so copies butt together evenly
-    }
-
-    // Clone the set enough times to always cover viewport + one set.
-    function fillClones() {
-      // remove existing clones
-      var clones = track.querySelectorAll(".sqcc-sb-clone");
-      Array.prototype.forEach.call(clones, function (c) { c.remove(); });
-      if (!(setWidth > 0) || !opts.loop) return;
-      var copiesNeeded = Math.ceil((viewportW + setWidth) / setWidth) + 1;
-      for (var c = 1; c < copiesNeeded; c++) {
-        for (var i = 0; i < n; i++) {
-          var clone = makeSlide(slidesData[i]);
-          clone.classList.add("sqcc-sb-clone");
-          clone.setAttribute("aria-hidden", "true");
-          if (clone.tagName === "A") clone.tabIndex = -1;
-          track.appendChild(clone);
-        }
-      }
-    }
-
-    /* ---- motion state ---- */
-    var offset = 0;
-    var playing = opts.autoplay;
-    var hovering = false;
-    var dragging = false;
-    var tween = null;         // {from,to,start,dur}
-    var resumeTimer = null;
-    var dir = opts.direction === "right" ? -1 : 1;
-
-    function apply() {
-      var o = opts.loop ? wrap(offset, setWidth) : clampNoLoop(offset);
-      offset = o;
-      track.style.transform = "translate3d(" + (-o) + "px,0,0)";
-      if (dotsWrap) updateDots();
-    }
-
-    function clampNoLoop(o) {
-      var max = Math.max(0, setWidth - viewportW);
-      return Math.min(max, Math.max(0, o));
-    }
-
-    function updateDots() {
-      var active = GEO.activeIndex(offset, lefts, widths, opts.align, opts.alignGap, viewportW, setWidth);
-      var dots = dotsWrap.children;
-      for (var i = 0; i < dots.length; i++) {
-        dots[i].classList.toggle("is-active", i === active);
-      }
-    }
-
-    /* ---- snapping ---- */
-    function targetForIndex(i) {
-      var base = lefts[i] - GEO.anchorX(opts.align, opts.alignGap, viewportW, widths[i]);
-      return opts.loop ? GEO.nearestPeriodic(base, offset, setWidth) : clampNoLoop(base);
-    }
-
-    function startTween(to, dur) {
-      tween = { from: offset, to: to, start: performance.now(), dur: dur || 420 };
-    }
-
-    function userSnapTo(i) {
-      cancelResume();
-      playing = false;
-      startTween(targetForIndex(i));
-      scheduleResume();
-    }
-
-    function step(delta) {
-      var cur = GEO.activeIndex(offset, lefts, widths, opts.align, opts.alignGap, viewportW, setWidth);
-      var next = cur + delta;
-      if (opts.loop) next = ((next % n) + n) % n;
-      else next = Math.min(n - 1, Math.max(0, next));
-      userSnapTo(next);
-    }
-
-    function scheduleResume() {
-      if (!opts.autoplay) return;
-      resumeTimer = setTimeout(function () {
-        resumeTimer = null;
-        if (!hovering) playing = true;
-      }, opts.resumeDelay);
-    }
-    function cancelResume() {
-      if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null; }
-    }
-
-    /* ---- rAF loop ---- */
-    var last = performance.now();
-    function frame(now) {
-      var dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-
-      if (tween) {
-        var t = (now - tween.start) / tween.dur;
-        if (t >= 1) { offset = tween.to; tween = null; }
-        else { offset = tween.from + (tween.to - tween.from) * easeOutCubic(t); }
-        apply();
-      } else if (playing && !dragging && !hoverPause()) {
-        offset += dir * opts.speed * dt;
-        apply();
-      }
-      raf = requestAnimationFrame(frame);
-    }
-    function hoverPause() { return opts.pauseOnHover && hovering; }
-    function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
-
-    /* ---- hover ---- */
-    root.addEventListener("mouseenter", function () { hovering = true; });
-    root.addEventListener("mouseleave", function () { hovering = false; });
-
-    /* ---- drag to scrub ---- */
-    var dragStartX = 0, dragStartOffset = 0, moved = 0, pointerId = null;
-    if (opts.drag) {
-      viewportEl.addEventListener("pointerdown", function (e) {
-        if (e.button != null && e.button !== 0) return;
-        dragging = true;
-        tween = null;
+      function pause() { playing = false; cancelResume(); }
+      function scheduleResume() {
         cancelResume();
-        pointerId = e.pointerId;
-        dragStartX = e.clientX;
-        dragStartOffset = offset;
-        moved = 0;
-        root.classList.add("is-dragging");
-        try { viewportEl.setPointerCapture(pointerId); } catch (_) {}
-      });
-      viewportEl.addEventListener("pointermove", function (e) {
-        if (!dragging) return;
-        var dx = e.clientX - dragStartX;
-        moved = Math.max(moved, Math.abs(dx));
-        offset = dragStartOffset - dx;
-        apply();
-      });
-      function endDrag() {
-        if (!dragging) return;
-        dragging = false;
-        root.classList.remove("is-dragging");
-        try { viewportEl.releasePointerCapture(pointerId); } catch (_) {}
-        // Snap the nearest image to the active edge, then hold.
-        var i = GEO.activeIndex(offset, lefts, widths, opts.align, opts.alignGap, viewportW, setWidth);
-        playing = false;
-        startTween(targetForIndex(i));
-        scheduleResume();
+        if (!opts.autoplay) return;
+        resumeTimer = setTimeout(function () {
+          resumeTimer = null;
+          if (!hovering) playing = true;
+        }, opts.resumeDelay);
       }
-      viewportEl.addEventListener("pointerup", endDrag);
-      viewportEl.addEventListener("pointercancel", endDrag);
-      // Swallow the click that follows a real drag so links don't fire.
-      root.addEventListener("click", function (e) {
-        if (moved > 6) { e.preventDefault(); e.stopPropagation(); moved = 0; }
-      }, true);
-    }
 
-    /* ---- keyboard ---- */
-    root.addEventListener("keydown", function (e) {
-      if (e.key === "ArrowLeft") { step(-1); e.preventDefault(); }
-      else if (e.key === "ArrowRight") { step(1); e.preventDefault(); }
-    });
+      // Only genuine user interaction pauses/resumes autoplay. Swiper fires
+      // transitionStart/transitionEnd for internal reasons too (loop
+      // repositioning, momentum settling after our own setTranslate calls),
+      // not just user-triggered slide changes — listening to those caused a
+      // pause/resume race that could starve autoplay indefinitely. Drag and
+      // explicit nav/dot clicks are unambiguous, so hook those directly.
+      swiper.on("touchStart", function () { dragging = true; pause(); });
+      swiper.on("touchEnd", function () { dragging = false; scheduleResume(); });
+      if (prevBtn) prevBtn.addEventListener("click", function () { pause(); scheduleResume(); });
+      if (nextBtn) nextBtn.addEventListener("click", function () { pause(); scheduleResume(); });
+      if (dotsEl) dotsEl.addEventListener("click", function (e) {
+        if (e.target.closest(".swiper-pagination-bullet")) { pause(); scheduleResume(); }
+      });
 
-    /* ---- resize ---- */
-    var ro;
-    function relayout() {
-      var frac = setWidth > 0 ? offset / setWidth : 0;
-      measure();
-      fillClones();
-      offset = frac * setWidth; // keep roughly the same scroll position
-      apply();
-    }
-    if (window.ResizeObserver) {
-      ro = new ResizeObserver(debounce(relayout, 150));
-      ro.observe(viewportEl);
-    } else {
-      window.addEventListener("resize", debounce(relayout, 150));
-    }
+      root.addEventListener("mouseenter", function () { hovering = true; });
+      root.addEventListener("mouseleave", function () {
+        hovering = false;
+        // If a drag/nav resume timer already fired *while* still hovering, it
+        // correctly declined to resume — nothing else would ever re-arm it.
+        // Leaving hover is itself a reason to give resuming another chance.
+        if (!playing && !dragging) scheduleResume();
+      });
 
-    /* ---- go: wait for images, then measure + start ---- */
-    var raf;
-    whenImagesReady(track, function () {
-      measure();
-      fillClones();
-      apply();
-      raf = requestAnimationFrame(frame);
+      var last = performance.now();
+      var sinceLoopFix = 0;
+      function frame(now) {
+        var dt = Math.min(0.05, (now - last) / 1000);
+        last = now;
+        if (playing && !dragging && !swiper.animating && !(opts.pauseOnHover && hovering)) {
+          var delta = dir * opts.speed * dt;
+          swiper.setTranslate(swiper.translate + delta);
+          swiper.updateProgress();
+          swiper.updateActiveIndex();
+          swiper.updateSlidesClasses();
+          // Calling loopFix() every frame confuses Swiper's own transition
+          // events (it looked like a real interaction and killed autoplay
+          // for good) — only re-fix occasionally, well before we'd run past
+          // the pre-cloned loop buffer.
+          if (opts.loop) {
+            sinceLoopFix += Math.abs(delta);
+            if (sinceLoopFix > 300) {
+              sinceLoopFix = 0;
+              swiper.loopFix();
+            }
+          }
+        }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+
       root.classList.add("is-ready");
-    });
-  }
-
-  /* =========================================================================
-   * HELPERS
-   * ========================================================================= */
-  function whenImagesReady(scope, cb) {
-    var imgs = scope.querySelectorAll("img");
-    var pending = imgs.length;
-    if (!pending) return cb();
-    var done = false;
-    function tick() { if (!done && --pending <= 0) { done = true; cb(); } }
-    Array.prototype.forEach.call(imgs, function (img) {
-      if (img.complete && img.naturalWidth) tick();
-      else {
-        img.addEventListener("load", tick, { once: true });
-        img.addEventListener("error", tick, { once: true });
-      }
-    });
-    // Safety net: never wait forever.
-    setTimeout(function () { if (!done) { done = true; cb(); } }, 3000);
-  }
-
-  function debounce(fn, ms) {
-    var t;
-    return function () {
-      clearTimeout(t);
-      t = setTimeout(fn, ms);
-    };
+    }
   }
 
   /* =========================================================================
@@ -527,12 +376,44 @@
     }
 
     configEl.dataset.sqccReady = "1";
-    build(configEl, opts, slidesData);
+    ensureSwiper(function () { build(configEl, opts, slidesData); });
   }
 
   function initAll() {
     var nodes = document.querySelectorAll('[data-sqcc-plugin="' + PLUGIN + '"]');
     Array.prototype.forEach.call(nodes, function (el) { initOne(el); });
+  }
+
+  /* =========================================================================
+   * HELPERS
+   * ========================================================================= */
+  function padForLoop(data) {
+    var MIN_SLIDES = 16;
+    if (!data.length || data.length >= MIN_SLIDES) return data;
+    var out = [];
+    var i = 0;
+    while (out.length < MIN_SLIDES) {
+      out.push(data[i % data.length]);
+      i++;
+    }
+    return out;
+  }
+
+  function whenImagesReady(scope, cb) {
+    var imgs = scope.querySelectorAll("img");
+    var pending = imgs.length;
+    if (!pending) return cb();
+    var done = false;
+    function tick() { if (!done && --pending <= 0) { done = true; cb(); } }
+    Array.prototype.forEach.call(imgs, function (img) {
+      if (img.complete && img.naturalWidth) tick();
+      else {
+        img.addEventListener("load", tick, { once: true });
+        img.addEventListener("error", tick, { once: true });
+      }
+    });
+    // Safety net: never wait forever.
+    setTimeout(function () { if (!done) { done = true; cb(); } }, 3000);
   }
 
   // Galleries can render a tick after DOMContentLoaded — retry briefly.

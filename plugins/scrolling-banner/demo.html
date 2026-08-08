@@ -7,14 +7,17 @@
 
   <!-- On Squarespace this goes in the HEADER injection -->
   <link rel="stylesheet" href="scrolling-banner.css" />
+  <!-- Swiper itself is NOT included here — scrolling-banner.js loads it from
+       jsDelivr automatically the first time it's needed. Requires network
+       access even when opening this file locally. -->
 
   <style>
     /* demo-only styling, not part of the plugin */
-    body { font-family: system-ui, sans-serif; max-width: 980px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #222; }
+    body { font-family: system-ui, sans-serif; margin: 0; line-height: 1.6; color: #222; }
+    .demo-col { max-width: 980px; margin: 2rem auto; padding: 0 1rem; }
     h1 { margin-bottom: 0.25rem; }
     h2 { margin-top: 2.5rem; }
     p.note { color: #666; }
-    .fakepost { margin-top: 1.5rem; }
     /* This block mimics what a Squarespace gallery renders: <img> with the real
        URL in data-src (lazy-load), optionally wrapped in an <a> for a link. */
     .sqs-gallery { display: none; }
@@ -22,16 +25,24 @@
 </head>
 <body>
 
-  <h1>scrolling-banner</h1>
-  <p class="note">
-    Drag the banner left/right to scrub — release and the nearest image snaps to
-    the left edge and holds, then it resumes. Hover pauses it. Arrows step one
-    image. The linked images (1, 3, 5) navigate on click but not on drag.
-  </p>
+  <div class="demo-col">
+    <h1>scrolling-banner</h1>
+    <p class="note">
+      On Squarespace this sits as the first Code Block in the first full-width
+      Section of a Page (title hidden) — full-bleed and behind the nav come
+      free from that placement, not from anything in this demo page. Below,
+      the banner breaks out edge-to-edge from this centered column on its own
+      via <code>data-full-bleed</code>, same trick it'll rely on there.
+    </p>
+    <p class="note">
+      <strong>Banner 1</strong> (<code>data-snap="true"</code>, default): drag and
+      release — the nearest image snaps to the left edge and holds, then resumes.
+    </p>
+  </div>
 
   <!-- ===== SOURCE "GALLERY" (hidden; the plugin reads images from here) ===== -->
-  <!-- On Squarespace you'd just add a real Gallery and give it id="hero-strip". -->
-  <div class="sqs-gallery" id="hero-strip">
+  <!-- On Squarespace you'd just add a real Gallery and give it id="hero-strip-1". -->
+  <div class="sqs-gallery" id="hero-strip-1">
     <a href="https://example.com/post-1"><img data-src="https://picsum.photos/id/1015/800/500" alt="Mountain lake" /></a>
     <img data-src="https://picsum.photos/id/1025/500/500" alt="Pug in a blanket" />
     <a href="https://example.com/post-3"><img data-src="https://picsum.photos/id/1039/900/500" alt="Waterfall valley" /></a>
@@ -41,34 +52,64 @@
     <img data-src="https://picsum.photos/id/1074/650/500" alt="Lion" />
   </div>
 
-  <!-- ===== THE BANNER (this is the Code Block config element) ===== -->
+  <!-- ===== BANNER 1 (this is the Code Block config element) ===== -->
   <div
     data-sqcc-plugin="scrolling-banner"
-    data-gallery="#hero-strip"
-    data-height="200"
+    data-gallery="#hero-strip-1"
+    data-height="220"
     data-gap="16"
     data-speed="70"
     data-align="left"
     data-align-gap="24"
     data-controls="true"
     data-dots="true"
+    data-snap="true"
     data-resume-delay="2500"
     data-radius="10"
     data-fade-edges="true"
-    aria-label="Featured posts"
+    aria-label="Featured posts, snap to nearest on release"
   ></div>
 
-  <div class="fakepost">
-    <h2>Your blog post title</h2>
+  <div class="demo-col">
+    <p class="note" style="margin-top: 2.5rem;">
+      <strong>Banner 2</strong> (<code>data-snap="false"</code>): drag and release —
+      it glides to a stop via momentum, no forced alignment to any image.
+    </p>
+  </div>
+
+  <div class="sqs-gallery" id="hero-strip-2">
+    <img data-src="https://picsum.photos/id/1080/700/500" alt="Forest path" />
+    <img data-src="https://picsum.photos/id/1084/850/500" alt="Coastline" />
+    <img data-src="https://picsum.photos/id/1011/600/500" alt="Camper van" />
+    <img data-src="https://picsum.photos/id/1016/900/500" alt="Desert road" />
+    <img data-src="https://picsum.photos/id/1018/750/500" alt="Alpine valley" />
+  </div>
+
+  <div
+    data-sqcc-plugin="scrolling-banner"
+    data-gallery="#hero-strip-2"
+    data-height="220"
+    data-gap="16"
+    data-speed="90"
+    data-direction="right"
+    data-controls="false"
+    data-snap="false"
+    data-radius="10"
+    aria-label="Featured posts, free glide on release"
+  ></div>
+
+  <div class="demo-col fakepost">
+    <h2>Your page title (hidden on the real page)</h2>
     <p>
       Regular page content flows below the banner. Resize the window to confirm
-      the loop and snapping recalculate cleanly. Try a touch device or your
-      browser's device emulator to check drag-to-scrub with a finger.
+      the loop and full-bleed width recalculate cleanly. Try a touch device or
+      your browser's device emulator to check drag-to-scrub with a finger, and
+      confirm Banner 1 snaps while Banner 2 glides freely to a stop.
     </p>
     <p>
-      Everything above the post is the plugin. On Squarespace, the source gallery
-      would be a normal Gallery block/section (hidden once read), and this banner
-      would sit in a Code Block at the top of the blog layout.
+      Hover either banner to confirm auto-scroll pauses (<code>data-pause-on-hover</code>,
+      default on), and that it resumes after <code>data-resume-delay</code> once you
+      stop interacting.
     </p>
   </div>
 

@@ -1,12 +1,23 @@
 <!--
   scrolling-banner — Code Block snippet.
 
-  1. Add a Gallery (Section or Block) to your blog page with the images you want,
-     and note or set its ID (Squarespace: block/section settings → an ID, or wrap
-     it and target it). The simplest: give the gallery an ID like #hero-strip.
+  Meant for a Squarespace PAGE, not a blog post: add it as the first Code
+  Block in the first (full-width) Section on the page, with the page title
+  hidden. That gets you edge-to-edge width and rendering behind a
+  transparent/fixed site header for free, straight from Squarespace's own
+  Section behavior — no extra setup in this snippet. (The nav-overlay effect
+  also depends on your site's own header being set to transparent/fixed in
+  Site Styles — that's a per-site prerequisite this plugin can't force.)
+
+  1. Add a Gallery (Section or Block) with the images you want, anywhere on
+     the page — it gets hidden once read. Give it an ID like #hero-strip if
+     there's more than one gallery on the page; otherwise the plugin
+     auto-detects the first one.
   2. Add a Code Block *where you want the banner to appear* and paste this.
-  3. Point data-gallery at your gallery. The original gallery is hidden and the
-     scrolling banner renders here in its place.
+  3. Point data-gallery at your gallery (skip it to auto-detect).
+
+  Swiper (the carousel engine) is loaded automatically by scrolling-banner.js
+  if it isn't already on the page — no extra tag needed here.
 
   Replace @v1.0.0 with the tag you want (@main while testing). Every data-*
   attribute below is optional except the plugin marker — omit one to use its
@@ -28,10 +39,12 @@
   data-controls="true"
   data-dots="false"
   data-drag="true"
+  data-snap="true"
   data-pause-on-hover="true"
   data-resume-delay="2500"
   data-radius="8"
   data-fade-edges="false"
+  data-full-bleed="true"
   aria-label="Featured images"
 ></div>
 
