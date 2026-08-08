@@ -26,7 +26,9 @@
  * OPTIONS  (every data-* is optional; see ./README.md for the full table)
  *   data-gallery         CSS selector of the source gallery (default: first gallery found)
  *   data-images          explicit "url | link | alt" list (newline or ;) — overrides gallery
- *   data-height          banner height in px (default 200)
+ *   data-height          banner height in px, or "auto" to fill the height of the
+ *                        containing Fluid Engine block/section instead of a fixed
+ *                        px value (default 200)
  *   data-gap             space between images in px (default 16)
  *   data-speed           auto-scroll speed in px/sec (default 60)
  *   data-direction       "left" | "right" (default left)
@@ -66,6 +68,7 @@
     return {
       gallery: d.gallery || "",
       images: d.images || "",
+      heightAuto: d.height === "auto",
       height: asInt(d.height, 200),
       gap: asInt(d.gap, 16),
       speed: asNum(d.speed, 60),
@@ -259,12 +262,26 @@
       window.addEventListener("resize", debounce(applyFullBleed, 150));
     }
 
+    // data-height="auto": fill the containing Fluid Engine block's own
+    // height instead of a fixed px value, so resizing the block (its resize
+    // handles in the page editor) is what controls the banner's height.
+    if (opts.heightAuto) {
+      var blockEl = findBlockAncestor(configEl);
+      var applyFullHeight = function () {
+        if (!blockEl) return;
+        root.style.setProperty("--sqcc-sb-height", blockEl.getBoundingClientRect().height + "px");
+      };
+      applyFullHeight();
+      window.addEventListener("resize", debounce(applyFullHeight, 150));
+    }
+
     // Swiper measures slide widths at init (slidesPerView:"auto" reads each
     // image's rendered width) — wait for images to load first, or every
     // slide measures near-zero and Swiper's loop math falls apart.
     whenImagesReady(wrapperEl, function () {
       initSwiper();
       if (opts.fullBleed) applyFullBleed();
+      if (opts.heightAuto) applyFullHeight();
     });
 
     function ctrlButton(dir, label) {
@@ -403,6 +420,20 @@
   /* =========================================================================
    * HELPERS
    * ========================================================================= */
+  // Walk up from the config element to the Fluid Engine block that contains
+  // it (its resize handles in the page editor) — a page builder's own block
+  // boundary, not any particular wrapper div, so ancestor markup can shift
+  // between templates without breaking this.
+  function findBlockAncestor(el) {
+    var node = el.parentElement;
+    while (node && node !== document.body) {
+      var cls = node.className;
+      if (typeof cls === "string" && /(^|\s)fe-block(\s|$)/.test(cls)) return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+
   function padForLoop(data) {
     var MIN_SLIDES = 16;
     if (!data.length || data.length >= MIN_SLIDES) return data;

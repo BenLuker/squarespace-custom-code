@@ -80,7 +80,7 @@ optional except `data-sqcc-plugin`; omit one to use its default.
 | Attribute | Default | Meaning |
 | --- | --- | --- |
 | `data-gallery` | *(first gallery)* | CSS selector of the source gallery (`#hero-strip`). |
-| `data-height` | `200` | Banner height in px. Images scale to this height, keeping aspect ratio. |
+| `data-height` | `200` | Banner height in px, or `auto` to fill the height of the containing Fluid Engine block instead — resize the block's own resize handles in the page editor to control it. Images scale to this height, keeping aspect ratio. |
 | `data-gap` | `16` | Space between images, px. |
 | `data-speed` | `60` | Auto-scroll speed in px/second. |
 | `data-direction` | `left` | Scroll direction: `left` or `right`. |

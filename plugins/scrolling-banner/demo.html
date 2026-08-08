@@ -98,6 +98,36 @@
     aria-label="Featured posts, free glide on release"
   ></div>
 
+  <div class="demo-col">
+    <p class="note" style="margin-top: 2.5rem;">
+      <strong>Banner 3</strong> (<code>data-height="auto"</code>): fills the height of
+      its containing Fluid Engine block (here mocked as a 400px-tall <code>.fe-block</code>)
+      instead of a fixed px value — on Squarespace, resizing the block's own resize
+      handles is what controls this banner's height.
+    </p>
+  </div>
+
+  <div class="sqs-gallery" id="hero-strip-3">
+    <img data-src="https://picsum.photos/id/1039/900/500" alt="Waterfall valley" />
+    <img data-src="https://picsum.photos/id/1050/600/500" alt="Snowy peaks" />
+    <img data-src="https://picsum.photos/id/1074/650/500" alt="Lion" />
+    <img data-src="https://picsum.photos/id/1015/800/500" alt="Mountain lake" />
+  </div>
+
+  <!-- fe-block mocks the Fluid Engine block wrapper scrolling-banner.js looks for -->
+  <div class="fe-block" style="height: 400px;">
+    <div
+      data-sqcc-plugin="scrolling-banner"
+      data-gallery="#hero-strip-3"
+      data-height="auto"
+      data-gap="16"
+      data-speed="50"
+      data-controls="true"
+      data-radius="0"
+      aria-label="Featured posts, fills its block height"
+    ></div>
+  </div>
+
   <div class="demo-col fakepost">
     <h2>Your page title (hidden on the real page)</h2>
     <p>
