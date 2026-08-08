@@ -31,15 +31,11 @@
   border-radius: var(--sqcc-sb-radius);
 }
 
-/* Stretch past the content column, edge to edge (opt out with data-full-bleed="false") */
-.sqcc-scrolling-banner.sqcc-sb-full-bleed {
-  width: 100vw;
-  position: relative;
-  left: 50%;
-  right: 50%;
-  margin-left: -50vw;
-  margin-right: -50vw;
-}
+/* Stretch past the content column, edge to edge (opt out with data-full-bleed="false").
+   Width/margin-left are set by scrolling-banner.js, not here: the classic
+   `left:50%; margin-left:-50vw` trick assumes its containing block is itself
+   centered in the viewport, which page-builder canvases (Fluid Engine) don't
+   guarantee — JS measures the real offset instead of assuming it. */
 
 /* The Swiper instance (clipping window + track) */
 .sqcc-scrolling-banner .sqcc-sb-swiper {

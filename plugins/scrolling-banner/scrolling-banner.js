@@ -241,11 +241,30 @@
     configEl.innerHTML = "";
     configEl.appendChild(root);
 
+    // Squarespace page builders (Fluid Engine) position blocks in an
+    // absolutely-placed, often narrow/off-center canvas column — the classic
+    // `left:50%; margin-left:-50vw` breakout assumes the containing block is
+    // itself centered in the viewport, which isn't true there, and silently
+    // shifts the banner off to one side instead of reaching the edges.
+    // Measuring the real offset and compensating directly always works.
+    if (opts.fullBleed) {
+      var applyFullBleed = function () {
+        root.style.width = "";
+        root.style.marginLeft = "";
+        var left = root.getBoundingClientRect().left;
+        root.style.width = document.documentElement.clientWidth + "px";
+        root.style.marginLeft = -left + "px";
+      };
+      applyFullBleed();
+      window.addEventListener("resize", debounce(applyFullBleed, 150));
+    }
+
     // Swiper measures slide widths at init (slidesPerView:"auto" reads each
     // image's rendered width) — wait for images to load first, or every
     // slide measures near-zero and Swiper's loop math falls apart.
     whenImagesReady(wrapperEl, function () {
       initSwiper();
+      if (opts.fullBleed) applyFullBleed();
     });
 
     function ctrlButton(dir, label) {
@@ -327,26 +346,23 @@
       });
 
       var last = performance.now();
-      var sinceLoopFix = 0;
       function frame(now) {
         var dt = Math.min(0.05, (now - last) / 1000);
         last = now;
         if (playing && !dragging && !swiper.animating && !(opts.pauseOnHover && hovering)) {
-          var delta = dir * opts.speed * dt;
-          swiper.setTranslate(swiper.translate + delta);
+          swiper.setTranslate(swiper.translate + dir * opts.speed * dt);
           swiper.updateProgress();
           swiper.updateActiveIndex();
           swiper.updateSlidesClasses();
-          // Calling loopFix() every frame confuses Swiper's own transition
-          // events (it looked like a real interaction and killed autoplay
-          // for good) — only re-fix occasionally, well before we'd run past
-          // the pre-cloned loop buffer.
-          if (opts.loop) {
-            sinceLoopFix += Math.abs(delta);
-            if (sinceLoopFix > 300) {
-              sinceLoopFix = 0;
-              swiper.loopFix();
-            }
+          // loopFix() re-centers the clone buffer around the current
+          // position — necessary once we approach the edge of what's been
+          // cloned, but NOT safe to call unconditionally: it visibly
+          // renormalizes translate on every call (not just when actually
+          // needed), which fights our own incremental nudge and shows up as
+          // a stutter/cut. Only call it once translate actually reaches the
+          // measured bounds, same trigger Swiper's own drag path uses.
+          if (opts.loop && (swiper.translate < swiper.maxTranslate() || swiper.translate > swiper.minTranslate())) {
+            swiper.loopFix();
           }
         }
         requestAnimationFrame(frame);
@@ -397,6 +413,14 @@
       i++;
     }
     return out;
+  }
+
+  function debounce(fn, ms) {
+    var t;
+    return function () {
+      clearTimeout(t);
+      t = setTimeout(fn, ms);
+    };
   }
 
   function whenImagesReady(scope, cb) {
