@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>reel-autoscroll demo</title>
+
+  <!-- On Squarespace this goes in the HEADER Code Injection -->
+  <link rel="stylesheet" href="reel-autoscroll.css" />
+  <!-- Embla itself is NOT included here — reel-autoscroll.js loads it from
+       jsDelivr automatically the first time it's needed (headless, so no CSS
+       to include either). Requires network access even when opening this
+       file locally. -->
+
+  <style>
+    /* demo-only styling, not part of the plugin */
+    body { font-family: system-ui, sans-serif; margin: 0; line-height: 1.6; color: #222; }
+    .demo-col { max-width: 980px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { margin-bottom: 0.25rem; }
+    h2 { margin-top: 2.5rem; }
+    p.note { color: #666; }
+    code { background: #f2f2f2; padding: 0.1em 0.35em; border-radius: 4px; }
+
+    /* This block mimics the real markup Squarespace 7.1 renders for a
+       Gallery Section set to "Slideshow: Reel" — .page-section.gallery-section
+       > .gallery.gallery-section-wrapper > .gallery-reel[data-controller=GalleryReel]
+       > .gallery-reel-list > .gallery-reel-item figures. On the real site you'd
+       never write this by hand; the plugin reads whatever Squarespace already
+       rendered. It's reproduced here only so the demo has something to detect
+       and replace without a live Squarespace page. */
+    .gallery-reel-item { display: none; } /* the plugin reads their <img>s, not their layout */
+  </style>
+</head>
+<body>
+
+  <div class="demo-col">
+    <h1>reel-autoscroll</h1>
+    <p class="note">
+      Mimics two native Squarespace "Slideshow: Reel" gallery sections below.
+      The plugin finds anything carrying <code>sqcc-reel-auto</code> (the
+      class an editor would add via the Section's own Custom CSS Class
+      field), hides the native reel, and replaces it with a continuously
+      auto-scrolling, drag-to-scrub ribbon built on Embla.
+    </p>
+    <p class="note">
+      <strong>Section 1</strong>: just <code>sqcc-reel-auto</code> — every
+      other option stays at its default.
+    </p>
+  </div>
+
+  <section class="page-section gallery-section full-bleed-section sqcc-reel-auto">
+    <div class="gallery gallery-section-wrapper">
+      <div class="gallery-reel" data-controller="GalleryReel" data-props='{"isCropping": false, "controlsLocation": "side", "viewportHeight": 55, "width": "full-bleed"}'>
+        <div class="gallery-reel-list">
+          <figure class="gallery-reel-item"><img data-image="https://picsum.photos/id/1015/1600/1200" alt="Mountain lake" /></figure>
+          <figure class="gallery-reel-item"><img data-image="https://picsum.photos/id/1025/1200/1200" alt="Pug in a blanket" /></figure>
+          <figure class="gallery-reel-item"><img data-image="https://picsum.photos/id/1039/1600/1000" alt="Waterfall valley" /></figure>
+          <figure class="gallery-reel-item"><img data-image="https://picsum.photos/id/1043/1400/1000" alt="City street at night" /></figure>
+          <figure class="gallery-reel-item"><img data-image="https://picsum.photos/id/1050/1400/1000" alt="Snowy peaks" /></figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="demo-col">
+    <p class="note" style="margin-top: 2.5rem;">
+      <strong>Section 2</strong>: <code>sqcc-reel-auto sqcc-reel-speed-90
+      sqcc-reel-dir-right sqcc-reel-dots sqcc-reel-no-controls
+      sqcc-reel-radius-16</code> — faster, scrolls right, dots instead of
+      arrows, rounded corners, and set to an inset (not full-bleed) width to
+      confirm the ribbon respects that too.
+    </p>
+  </div>
+
+  <div class="demo-col">
+    <section class="page-section gallery-section sqcc-reel-auto sqcc-reel-speed-90 sqcc-reel-dir-right sqcc-reel-dots sqcc-reel-no-controls sqcc-reel-radius-16">
+      <div class="gallery gallery-section-wrapper">
+        <div class="gallery-reel" data-controller="GalleryReel" data-props='{"isCropping": false, "controlsLocation": "side", "viewportHeight": 40, "width": "inset"}'>
+          <div class="gallery-reel-list">
+            <figure class="gallery-reel-item"><img data-image="https://picsum.photos/id/1080/1200/1400" alt="Forest path" /></figure>
+            <figure class="gallery-reel-item"><img data-image="https://picsum.photos/id/1084/1500/1000" alt="Coastline" /></figure>
+            <figure class="gallery-reel-item"><img data-image="https://picsum.photos/id/1011/1200/1200" alt="Camper van" /></figure>
+            <figure class="gallery-reel-item"><img data-image="https://picsum.photos/id/1016/1500/1000" alt="Desert road" /></figure>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="demo-col fakepost">
+    <h2>Rest of the page</h2>
+    <p>
+      Content flows normally below. Drag either ribbon and confirm it holds
+      once you let go — resume waits for the drag's own momentum to fully
+      settle before the resume-delay hold starts, so it never fights an
+      in-flight release glide or snap.
+    </p>
+  </div>
+
+  <!-- On Squarespace this goes in the FOOTER Code Injection -->
+  <script src="reel-autoscroll.js" defer></script>
+</body>
+</html>

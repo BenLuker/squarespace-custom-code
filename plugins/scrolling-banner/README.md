@@ -1,10 +1,11 @@
 # scrolling-banner
 
 An infinitely scrolling, edge-to-edge image banner built from an existing
-Squarespace **Gallery**, powered by [Swiper](https://swiperjs.com). It
-auto-scrolls continuously; grab and drag to scrub, and release either snaps
-the nearest image to the active edge and holds before resuming, or glides to
-a natural stop via momentum — your choice, see `data-snap`.
+Squarespace **Gallery**, powered by [Embla Carousel](https://www.embla-carousel.com)
+— the same engine Shopify's own theme uses for its auto-scrolling image
+rails. It auto-scrolls continuously; grab and drag to scrub, and release
+either snaps the nearest image to the active edge and holds before resuming,
+or glides to a natural stop via momentum — your choice, see `data-snap`.
 
 It's meant to sit as the **first Section on a Page**, with the page title
 hidden. Squarespace Sections are edge-to-edge full-bleed by default and can
@@ -21,12 +22,15 @@ including a side-by-side of `data-snap="true"` vs `"false"`.
 You already have the images in a Squarespace Gallery. This plugin reads the
 image URLs (and any links you set on them) out of that gallery, hides the
 original, and renders the banner in a Code Block where you place it — built
-as a [Swiper](https://swiperjs.com) instance, which is loaded from jsDelivr
-automatically the first time it's needed (no extra tag to add). Swiper
-handles seamless looping, drag, and momentum/snap physics on release; a small
-`requestAnimationFrame` loop on top handles the continuous auto-scroll while
-idle, which is the one thing Swiper's own autoplay (slide-to-slide on a
-delay) doesn't do.
+as an [Embla Carousel](https://www.embla-carousel.com) instance, which is
+loaded from jsDelivr automatically the first time it's needed (no extra tag
+to add, and no separate CSS file — Embla is headless). Embla handles drag and
+momentum/snap physics on release; the continuous auto-scroll while idle is
+driven by reaching directly into Embla's internal engine every animation
+frame and nudging its scroll position, loop bookkeeping, and transform
+together in one step — the same technique Shopify's own theme uses for its
+auto-scrolling image rails, and considerably smoother than calling a
+library's public API in a tight loop.
 
 ## Install
 
@@ -93,7 +97,7 @@ optional except `data-sqcc-plugin`; omit one to use its default.
 | `data-drag` | `true` | Enable click-and-drag scrubbing. |
 | `data-snap` | `true` | Release snaps the nearest image to the active edge. `false` = free glide to a stop via momentum, no forced alignment. |
 | `data-pause-on-hover` | `true` | Pause auto-scroll while the pointer is over the banner. |
-| `data-resume-delay` | `2500` | How long (ms) to hold after you interact before auto-scroll resumes. |
+| `data-resume-delay` | `2500` | How long (ms) to hold, once the interaction's own motion (drag momentum, snap, or arrow/dot scroll) settles, before auto-scroll resumes. |
 | `data-radius` | `8` | Image corner radius, px. |
 | `data-fade-edges` | `false` | Fade the left/right edges so images ease in and out. |
 | `data-full-bleed` | `true` | Stretch edge-to-edge past the content column (`100vw` breakout). Set `false` to keep it content-width instead. |
@@ -119,13 +123,15 @@ When `data-images` is present it takes priority and no gallery is read.
 - **Auto-scroll:** continuous, at `data-speed`, in `data-direction`, paused
   while dragging or (if `data-pause-on-hover`) hovered.
 - **Drag:** press and drag horizontally to scrub. On release: with
-  `data-snap="true"` (default) the nearest image snaps to the active edge and
-  holds for `data-resume-delay`, then resumes; with `data-snap="false"` it
-  glides to a stop via momentum instead, wherever that lands.
+  `data-snap="true"` (default) the nearest image snaps to the active edge;
+  with `data-snap="false"` it glides to a stop via momentum instead, wherever
+  that lands. Either way, auto-scroll holds for `data-resume-delay` *after
+  that motion itself finishes settling* (not from the instant you let go) —
+  so the hold never starts while the release is still gliding or snapping.
 - **Click a linked image:** navigates to its link. A drag never triggers the
   link.
-- **Arrows / dots / arrow keys:** step to a specific image, then hold before
-  auto-scroll resumes.
+- **Arrows / dots / arrow keys:** step to a specific image; once that move
+  finishes, hold for `data-resume-delay` before auto-scroll resumes.
 - **Reduced motion:** if the visitor's OS is set to reduce motion, auto-scroll
   defaults off; they can still drag and use the controls. Set
   `data-autoplay="true"` to force it on.
@@ -138,9 +144,9 @@ When `data-images` is present it takes priority and no gallery is read.
 - Links come from each gallery image's **Clickthrough URL**. Lightbox-only or
   empty links are ignored.
 - Files: `scrolling-banner.css` → HEADER, `scrolling-banner.js` → FOOTER,
-  `block.html` → a Code Block. `demo.html` is for local preview only. Swiper
+  `block.html` → a Code Block. `demo.html` is for local preview only. Embla
   itself is loaded automatically by `scrolling-banner.js` — don't add it
-  separately.
+  separately (and no separate CSS file for it — Embla is headless).
 
 ## jsDelivr URL pattern
 

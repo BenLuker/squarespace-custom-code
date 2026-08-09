@@ -1,0 +1,173 @@
+/* =========================================================
+   Plugin: reel-autoscroll
+   Replaces Squarespace's native "Gallery Section → Slideshow: Reel" with a
+   continuously auto-scrolling, drag-to-scrub image ribbon, powered by Embla
+   Carousel (reel-autoscroll.js loads it automatically). Embla is headless —
+   ships no CSS of its own — so this file owns the entire look.
+
+   Structural/config CSS custom properties, set by reel-autoscroll.js:
+     --sqcc-rr-height   ribbon height (vh, mirrors the section's own height)
+     --sqcc-rr-gap      gap between images
+     --sqcc-rr-radius   image corner radius
+   Everything is scoped under .sqcc-reel-ribbon so it can't collide with
+   Squarespace's own styles or other Embla instances on the page.
+   ========================================================= */
+
+.sqcc-reel-ribbon {
+  --sqcc-rr-height: 70vh;
+  --sqcc-rr-gap: 16px;
+  --sqcc-rr-radius: 8px;
+  --sqcc-rr-arrow-bg: rgba(20, 20, 20, 0.55);
+  --sqcc-rr-arrow-fg: #ffffff;
+  --sqcc-rr-fade-size: 64px;
+
+  position: relative;
+  width: 100%;
+  outline: none;
+}
+.sqcc-reel-ribbon:focus-visible {
+  box-shadow: 0 0 0 3px rgba(80, 140, 255, 0.6);
+  border-radius: var(--sqcc-rr-radius);
+}
+
+/* The clipping window Embla is initialized on */
+.sqcc-reel-ribbon .sqcc-rr-viewport {
+  height: var(--sqcc-rr-height);
+  overflow: hidden;
+  touch-action: pan-y pinch-zoom;
+}
+.sqcc-reel-ribbon.sqcc-rr-draggable .sqcc-rr-viewport { cursor: grab; }
+.sqcc-reel-ribbon.sqcc-rr-draggable.is-dragging .sqcc-rr-viewport { cursor: grabbing; }
+
+/* The track Embla transforms. Gap is plain flexbox gap — Embla measures
+   real rendered slide positions to work out spacing itself. No CSS
+   transition here: continuous auto-scroll is driven frame-by-frame in JS;
+   Embla applies its own transition only for scrollTo-driven moves
+   (arrows/dots/snap-on-release). */
+.sqcc-reel-ribbon .sqcc-rr-container {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  gap: var(--sqcc-rr-gap);
+  will-change: transform;
+}
+
+/* Each image */
+.sqcc-reel-ribbon .sqcc-rr-slide {
+  flex: 0 0 auto; /* overridden with an explicit px basis by JS once images load */
+  height: 100%;
+  border-radius: var(--sqcc-rr-radius);
+  overflow: hidden;
+}
+.sqcc-reel-ribbon .sqcc-rr-img {
+  display: block;
+  height: 100%;
+  width: auto;
+  object-fit: cover;
+  pointer-events: none; /* clicks/drag handled by Embla on the slide */
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* Avoid a flash of unmeasured layout before Embla + JS finish setup */
+.sqcc-reel-ribbon:not(.is-ready) .sqcc-rr-container {
+  visibility: hidden;
+}
+
+/* ---- Edge fade (sqcc-reel-fade) ---- */
+.sqcc-reel-ribbon.sqcc-rr-fade .sqcc-rr-viewport {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--sqcc-rr-fade-size),
+    #000 calc(100% - var(--sqcc-rr-fade-size)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--sqcc-rr-fade-size),
+    #000 calc(100% - var(--sqcc-rr-fade-size)),
+    transparent 100%
+  );
+}
+
+/* ---- Full-bleed breakout (only applied when the native section itself
+   was set to full-bleed width — see reel-autoscroll.js) ---- */
+.sqcc-reel-ribbon.sqcc-rr-full-bleed {
+  position: relative;
+}
+
+/* ---- Arrows (our own buttons; JS wires click + disabled state via Embla's API) ---- */
+.sqcc-reel-ribbon .sqcc-rr-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--sqcc-rr-arrow-bg);
+  color: var(--sqcc-rr-arrow-fg);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.18s ease, background 0.18s ease;
+}
+.sqcc-reel-ribbon:hover .sqcc-rr-arrow,
+.sqcc-reel-ribbon:focus-within .sqcc-rr-arrow {
+  opacity: 1;
+}
+.sqcc-reel-ribbon .sqcc-rr-arrow:hover {
+  background: rgba(20, 20, 20, 0.8);
+}
+.sqcc-reel-ribbon .sqcc-rr-arrow:focus-visible {
+  opacity: 1;
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.sqcc-reel-ribbon .sqcc-rr-arrow:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+.sqcc-reel-ribbon .sqcc-rr-arrow-prev { left: 12px; }
+.sqcc-reel-ribbon .sqcc-rr-arrow-next { right: 12px; }
+.sqcc-reel-ribbon .sqcc-rr-arrow svg { display: block; }
+
+@media (hover: none) {
+  .sqcc-reel-ribbon .sqcc-rr-arrow { opacity: 1; } /* touch devices can't hover */
+}
+
+/* ---- Dots (sqcc-reel-dots) ---- */
+.sqcc-reel-ribbon .sqcc-rr-dots {
+  position: static;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.sqcc-reel-ribbon .sqcc-rr-dot {
+  width: 8px;
+  height: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  opacity: 1;
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.25);
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+.sqcc-reel-ribbon .sqcc-rr-dot:hover { background: rgba(20, 20, 20, 0.45); }
+.sqcc-reel-ribbon .sqcc-rr-dot.is-active {
+  background: rgba(20, 20, 20, 0.85);
+  transform: scale(1.25);
+}
+.sqcc-reel-ribbon .sqcc-rr-dot:focus-visible {
+  outline: 2px solid rgba(80, 140, 255, 0.9);
+  outline-offset: 2px;
+}

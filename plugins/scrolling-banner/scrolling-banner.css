@@ -1,9 +1,10 @@
 /* =========================================================
    Plugin: scrolling-banner
    Infinitely scrolling, edge-to-edge image banner built from a Squarespace
-   gallery, powered by Swiper (swiper-bundle.min.css, loaded automatically by
-   scrolling-banner.js). This file only skins Swiper's own markup and adds the
-   full-bleed breakout — Swiper handles layout/transform/touch-action itself.
+   gallery, powered by Embla Carousel (scrolling-banner.js loads it
+   automatically). Embla is headless — it ships no CSS of its own — so this
+   file owns the entire look: layout, transform target, drag cursor, arrows,
+   and dots.
 
    Look is driven by CSS custom properties that scrolling-banner.js sets
    from data-* attributes:
@@ -11,7 +12,7 @@
      --sqcc-sb-gap      gap between images
      --sqcc-sb-radius   image corner radius
    Everything is scoped under .sqcc-scrolling-banner so it can't collide
-   with Squarespace's own styles or other Swiper instances on the page.
+   with Squarespace's own styles or other Embla instances on the page.
    ========================================================= */
 
 .sqcc-scrolling-banner {
@@ -37,20 +38,32 @@
    centered in the viewport, which page-builder canvases (Fluid Engine) don't
    guarantee — JS measures the real offset instead of assuming it. */
 
-/* The Swiper instance (clipping window + track) */
-.sqcc-scrolling-banner .sqcc-sb-swiper {
+/* The clipping window Embla is initialized on */
+.sqcc-scrolling-banner .sqcc-sb-viewport {
   height: var(--sqcc-sb-height);
+  overflow: hidden;
+  touch-action: pan-y pinch-zoom;
 }
-.sqcc-scrolling-banner .swiper-wrapper {
+.sqcc-scrolling-banner.sqcc-sb-draggable .sqcc-sb-viewport { cursor: grab; }
+.sqcc-scrolling-banner.sqcc-sb-draggable.is-dragging .sqcc-sb-viewport { cursor: grabbing; }
+
+/* The track Embla transforms. Gap between slides is plain flexbox gap —
+   Embla measures real rendered slide positions to work out spacing itself,
+   no "spaceBetween" option needed like Swiper had. No CSS transition here
+   either: continuous auto-scroll is driven frame-by-frame in JS; Embla
+   applies its own transition only for scrollTo-driven moves (arrows/dots/
+   snap-on-release). */
+.sqcc-scrolling-banner .sqcc-sb-container {
+  display: flex;
   align-items: stretch;
-  /* No CSS transition on the wrapper itself: continuous auto-scroll is driven
-     frame-by-frame in JS; Swiper applies its own transition only for
-     slideTo-driven moves (arrows/dots/snap). */
+  height: 100%;
+  gap: var(--sqcc-sb-gap);
+  will-change: transform;
 }
 
 /* Each image */
-.sqcc-scrolling-banner .swiper-slide {
-  width: auto;
+.sqcc-scrolling-banner .sqcc-sb-slide {
+  flex: 0 0 auto; /* overridden with an explicit px basis by JS once images load */
   height: 100%;
 }
 .sqcc-scrolling-banner .sqcc-sb-slide-inner {
@@ -67,7 +80,7 @@
   width: auto;
   object-fit: cover;
   border-radius: var(--sqcc-sb-radius);
-  pointer-events: none; /* clicks/drag handled by Swiper on the slide */
+  pointer-events: none; /* clicks/drag handled by Embla on the slide */
   -webkit-user-drag: none;
   user-select: none;
 }
@@ -76,13 +89,13 @@
   filter: brightness(1.05);
 }
 
-/* Avoid a flash of unmeasured layout before Swiper + JS finish setup */
-.sqcc-scrolling-banner:not(.is-ready) .swiper-wrapper {
+/* Avoid a flash of unmeasured layout before Embla + JS finish setup */
+.sqcc-scrolling-banner:not(.is-ready) .sqcc-sb-container {
   visibility: hidden;
 }
 
 /* ---- Edge fade (optional) ---- */
-.sqcc-scrolling-banner.sqcc-sb-fade .sqcc-sb-swiper {
+.sqcc-scrolling-banner.sqcc-sb-fade .sqcc-sb-viewport {
   -webkit-mask-image: linear-gradient(
     to right,
     transparent 0,
@@ -99,7 +112,7 @@
   );
 }
 
-/* ---- Arrows (our own buttons; Swiper only wires click + disabled state) ---- */
+/* ---- Arrows (our own buttons; JS wires click + disabled state via Embla's API) ---- */
 .sqcc-scrolling-banner .sqcc-sb-arrow {
   position: absolute;
   top: 50%;
@@ -131,7 +144,7 @@
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
-.sqcc-scrolling-banner .sqcc-sb-arrow.swiper-button-disabled {
+.sqcc-scrolling-banner .sqcc-sb-arrow:disabled {
   opacity: 0;
   pointer-events: none;
 }
@@ -144,30 +157,32 @@
   .sqcc-scrolling-banner .sqcc-sb-arrow { opacity: 1; }
 }
 
-/* ---- Dots (Swiper's pagination module builds the bullets; we restyle them) ---- */
-.sqcc-scrolling-banner .sqcc-sb-dots.swiper-pagination {
+/* ---- Dots (Embla ships no pagination UI; JS builds bullets off its scroll-snap list) ---- */
+.sqcc-scrolling-banner .sqcc-sb-dots {
   position: static;
   display: flex;
   justify-content: center;
   gap: 8px;
   margin-top: 12px;
 }
-.sqcc-scrolling-banner .swiper-pagination-bullet {
+.sqcc-scrolling-banner .sqcc-sb-dot {
   width: 8px;
   height: 8px;
   margin: 0;
+  padding: 0;
+  border: none;
   opacity: 1;
   border-radius: 999px;
   background: rgba(20, 20, 20, 0.25);
   cursor: pointer;
   transition: background 0.18s ease, transform 0.18s ease;
 }
-.sqcc-scrolling-banner .swiper-pagination-bullet:hover { background: rgba(20, 20, 20, 0.45); }
-.sqcc-scrolling-banner .swiper-pagination-bullet-active {
+.sqcc-scrolling-banner .sqcc-sb-dot:hover { background: rgba(20, 20, 20, 0.45); }
+.sqcc-scrolling-banner .sqcc-sb-dot.is-active {
   background: rgba(20, 20, 20, 0.85);
   transform: scale(1.25);
 }
-.sqcc-scrolling-banner .swiper-pagination-bullet:focus-visible {
+.sqcc-scrolling-banner .sqcc-sb-dot:focus-visible {
   outline: 2px solid rgba(80, 140, 255, 0.9);
   outline-offset: 2px;
 }

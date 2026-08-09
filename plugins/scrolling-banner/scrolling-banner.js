@@ -14,14 +14,19 @@
  *     <div data-sqcc-plugin="scrolling-banner" data-gallery="#hero-strip"></div>
  *
  *   The script reads every image out of that gallery (URL, link, alt), hides the
- *   original gallery, and renders the banner inside the config element as a
- *   Swiper (https://swiperjs.com) instance — Swiper is loaded from jsDelivr at
- *   runtime if it isn't already on the page, so the Squarespace install stays a
- *   single link/div/script snippet. Swiper's `loop` mode handles seamless
- *   wrapping and its `freeMode` (with momentum) handles drag-and-glide; this
- *   file adds a small requestAnimationFrame loop on top for the continuous
- *   idle auto-scroll, which Swiper doesn't provide natively (its own autoplay
- *   module advances slide-to-slide on a delay, not a constant-speed marquee).
+ *   original gallery, and renders the banner inside the config element as an
+ *   Embla Carousel (https://www.embla-carousel.com) instance — Embla is loaded
+ *   from jsDelivr at runtime if it isn't already on the page, so the Squarespace
+ *   install stays a single link/div/script snippet. Embla is headless (ships no
+ *   CSS of its own, unlike Swiper) and handles drag/momentum/snap physics; the
+ *   continuous idle auto-scroll — a marquee, not the slide-to-slide paging every
+ *   carousel library ships as "autoplay" — is driven by reaching directly into
+ *   Embla's internal engine every animation frame and nudging its scroll
+ *   location, target, loop bookkeeping, and translate together in one step, the
+ *   same technique Shopify's own theme uses for its auto-scrolling image rails.
+ *   Calling only a library's public API in a tight per-frame loop fights its own
+ *   drag/settle machinery instead of cooperating with it — that fight is what
+ *   shows up as stutter.
  *
  * OPTIONS  (every data-* is optional; see ./README.md for the full table)
  *   data-gallery         CSS selector of the source gallery (default: first gallery found)
@@ -42,7 +47,8 @@
  *   data-snap             release snaps nearest image to the active edge; false = free
  *                          glide to a stop via momentum, no forced alignment (default true)
  *   data-pause-on-hover   pause auto-scroll while hovered (default true)
- *   data-resume-delay     ms to hold after interaction before auto-scroll resumes (default 2500)
+ *   data-resume-delay     ms to hold, once drag/snap/scrollTo motion settles, before
+ *                          auto-scroll resumes (default 2500)
  *   data-radius           image corner radius in px (default 8)
  *   data-fade-edges       fade the left/right edges (default false)
  *   data-full-bleed       stretch edge-to-edge past the content column, 100vw (default true)
@@ -51,9 +57,8 @@
   "use strict";
 
   var PLUGIN = "scrolling-banner";
-  var SWIPER_VERSION = "14.1.0";
-  var SWIPER_JS = "https://cdn.jsdelivr.net/npm/swiper@" + SWIPER_VERSION + "/swiper-bundle.min.js";
-  var SWIPER_CSS = "https://cdn.jsdelivr.net/npm/swiper@" + SWIPER_VERSION + "/swiper-bundle.min.css";
+  var EMBLA_VERSION = "8.6.0";
+  var EMBLA_JS = "https://cdn.jsdelivr.net/npm/embla-carousel@" + EMBLA_VERSION + "/embla-carousel.umd.js";
 
   /* =========================================================================
    * OPTIONS
@@ -145,28 +150,22 @@
   }
 
   /* =========================================================================
-   * LOAD SWIPER (once, on demand)
+   * LOAD EMBLA (once, on demand) — headless: no CSS to load for the engine.
    * ========================================================================= */
-  function ensureSwiper(cb) {
-    if (window.Swiper) return cb();
-    if (window.__sqccSwiperLoading) {
-      window.__sqccSwiperCallbacks.push(cb);
+  function ensureEmbla(cb) {
+    if (window.EmblaCarousel) return cb();
+    if (window.__sqccEmblaLoading) {
+      window.__sqccEmblaCallbacks.push(cb);
       return;
     }
-    window.__sqccSwiperLoading = true;
-    window.__sqccSwiperCallbacks = [cb];
+    window.__sqccEmblaLoading = true;
+    window.__sqccEmblaCallbacks = [cb];
 
-    if (!document.querySelector('link[href="' + SWIPER_CSS + '"]')) {
-      var link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = SWIPER_CSS;
-      document.head.appendChild(link);
-    }
     var script = document.createElement("script");
-    script.src = SWIPER_JS;
+    script.src = EMBLA_JS;
     script.onload = function () {
-      var cbs = window.__sqccSwiperCallbacks || [];
-      window.__sqccSwiperCallbacks = [];
+      var cbs = window.__sqccEmblaCallbacks || [];
+      window.__sqccEmblaCallbacks = [];
       cbs.forEach(function (fn) { fn(); });
     };
     document.head.appendChild(script);
@@ -178,14 +177,17 @@
   function build(configEl, opts, slidesData) {
     configEl.style.display = "";
 
-    // Swiper's loop mode needs a comfortably large real slide set to clone
-    // from — a small gallery on a wide viewport isn't enough on its own
-    // (Swiper warns and disables looping rather than duplicating for you).
-    // Repeat the set until there's plenty, same idea as v1's manual cloning.
-    // Note: if data-dots is also on, dot count reflects this padded count,
-    // not the original unique image count — a known tradeoff for small
-    // galleries with loop + dots both enabled.
+    // Embla's loop mode repositions the real slide nodes at the boundary
+    // rather than cloning like Swiper does — but our own continuous per-frame
+    // engine nudging (below) bypasses the normal drag/settle path that
+    // repositioning is triggered from, so there needs to be a real DOM width
+    // buffer ahead of the advancing position at all times. Pad the unique set
+    // first (small galleries), then duplicate the whole real slide set once
+    // after the DOM is built and measured — same fix Shopify's theme uses for
+    // its own continuously-nudged Embla instances.
     if (opts.loop) slidesData = padForLoop(slidesData);
+
+    var single = slidesData.length <= 1;
 
     // ---- DOM ----
     var root = document.createElement("div");
@@ -198,17 +200,27 @@
     root.style.setProperty("--sqcc-sb-radius", opts.radius + "px");
     if (opts.fadeEdges) root.classList.add("sqcc-sb-fade");
     if (opts.fullBleed) root.classList.add("sqcc-sb-full-bleed");
+    if (opts.drag && !single) root.classList.add("sqcc-sb-draggable");
 
-    var swiperEl = document.createElement("div");
-    swiperEl.className = "swiper sqcc-sb-swiper";
-    var wrapperEl = document.createElement("div");
-    wrapperEl.className = "swiper-wrapper";
-    swiperEl.appendChild(wrapperEl);
-    root.appendChild(swiperEl);
+    // Embla's own convention: a "viewport" (the overflow-hidden clipping
+    // window, passed to EmblaCarousel()) containing a single "container"
+    // (the flex row that gets translated) whose children are the slides.
+    var viewportEl = document.createElement("div");
+    viewportEl.className = "sqcc-sb-viewport";
+    var containerEl = document.createElement("div");
+    containerEl.className = "sqcc-sb-container";
+    viewportEl.appendChild(containerEl);
+    root.appendChild(viewportEl);
+
+    // Spacing from the active edge for left/right alignment: Embla has no
+    // "slidesOffsetBefore/After" option like Swiper — the documented way to
+    // offset the first/last snap point is padding on the viewport itself.
+    if (opts.align === "left" && opts.alignGap) viewportEl.style.paddingLeft = opts.alignGap + "px";
+    if (opts.align === "right" && opts.alignGap) viewportEl.style.paddingRight = opts.alignGap + "px";
 
     function makeSlide(data) {
       var slide = document.createElement("div");
-      slide.className = "swiper-slide sqcc-sb-slide";
+      slide.className = "sqcc-sb-slide";
       var inner = document.createElement(data.href ? "a" : "div");
       inner.className = "sqcc-sb-slide-inner";
       if (data.href) {
@@ -225,19 +237,19 @@
       slide.appendChild(inner);
       return slide;
     }
-    slidesData.forEach(function (data) { wrapperEl.appendChild(makeSlide(data)); });
+    slidesData.forEach(function (data) { containerEl.appendChild(makeSlide(data)); });
 
     // Controls
     var prevBtn, nextBtn, dotsEl;
-    if (opts.controls) {
+    if (opts.controls && !single) {
       prevBtn = ctrlButton("prev", "Previous");
       nextBtn = ctrlButton("next", "Next");
       root.appendChild(prevBtn);
       root.appendChild(nextBtn);
     }
-    if (opts.dots) {
+    if (opts.dots && !single) {
       dotsEl = document.createElement("div");
-      dotsEl.className = "sqcc-sb-dots swiper-pagination";
+      dotsEl.className = "sqcc-sb-dots";
       root.appendChild(dotsEl);
     }
 
@@ -275,11 +287,15 @@
       window.addEventListener("resize", debounce(applyFullHeight, 150));
     }
 
-    // Swiper measures slide widths at init (slidesPerView:"auto" reads each
-    // image's rendered width) — wait for images to load first, or every
-    // slide measures near-zero and Swiper's loop math falls apart.
-    whenImagesReady(wrapperEl, function () {
-      initSwiper();
+    // Embla (like Swiper) measures slide widths at init from the live DOM —
+    // wait for images to load first, or every slide measures near-zero and
+    // the loop/snap math falls apart.
+    whenImagesReady(containerEl, function () {
+      if (single) {
+        root.classList.add("is-ready");
+      } else {
+        initEmbla();
+      }
       if (opts.fullBleed) applyFullBleed();
       if (opts.heightAuto) applyFullHeight();
     });
@@ -296,35 +312,50 @@
       return b;
     }
 
-    function initSwiper() {
-      // ---- Swiper instance: handles loop cloning, drag, momentum/snap, nav, dots ----
-      var swiper = new window.Swiper(swiperEl, {
+    function sizeSlide(slide) {
+      // A fixed px flex-basis, read from the slide's own rendered image
+      // width — Embla measures each slide once at init via
+      // getBoundingClientRect(), and an unconstrained flex item can race the
+      // image's intrinsic-size layout, especially for the clones appended a
+      // moment later (cloneNode copies inline styles, not layout timing). A
+      // fixed basis makes that measurement, and the loop math built on top
+      // of it, deterministic.
+      var img = slide.querySelector("img");
+      slide.style.flex = "0 0 " + img.getBoundingClientRect().width + "px";
+    }
+
+    function initEmbla() {
+      var realSlides = Array.prototype.slice.call(containerEl.children);
+      realSlides.forEach(sizeSlide);
+
+      // ---- Embla instance: headless — options in, no built-in CSS or UI ----
+      var embla = window.EmblaCarousel(viewportEl, {
         loop: opts.loop,
-        slidesPerView: "auto",
-        spaceBetween: opts.gap,
-        speed: 420,
-        grabCursor: true,
-        allowTouchMove: opts.drag,
-        centeredSlides: opts.align === "center",
-        slidesOffsetBefore: opts.align === "left" ? opts.alignGap : 0,
-        slidesOffsetAfter: opts.align === "right" ? opts.alignGap : 0,
-        freeMode: {
-          enabled: true,
-          momentum: true,
-          sticky: opts.snap, // true = snap nearest slide on release; false = pure momentum glide
-        },
-        navigation: opts.controls ? { nextEl: nextBtn, prevEl: prevBtn } : false,
-        pagination: opts.dots ? { el: dotsEl, clickable: true } : false,
-        keyboard: { enabled: true, onlyInViewport: true },
-        a11y: { enabled: true },
+        axis: "x",
+        direction: "ltr",
+        align: opts.align === "center" ? "center" : (opts.align === "right" ? "end" : "start"),
+        draggable: opts.drag,
+        dragFree: !opts.snap, // snap=true → normal snap-to-nearest drag; snap=false → free momentum glide
+        slidesToScroll: 1,
       });
 
-      /* ---- continuous idle auto-scroll (the one thing Swiper doesn't do) ---- */
+      if (opts.loop) {
+        // Duplicate the real slide set once for a real DOM width buffer,
+        // then reInit so Embla's loop math accounts for the doubled content
+        // — the same trick Shopify's theme uses for a continuously-nudged
+        // Embla instance.
+        realSlides.forEach(function (slide) {
+          containerEl.appendChild(slide.cloneNode(true));
+        });
+        embla.reInit();
+      }
+
+      /* ---- continuous idle auto-scroll (the one thing no carousel library ships) ---- */
       var playing = opts.autoplay;
       var hovering = false;
       var dragging = false;
       var resumeTimer = null;
-      var dir = opts.direction === "right" ? 1 : -1;
+      var dirSign = opts.direction === "right" ? 1 : -1;
 
       function cancelResume() {
         if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null; }
@@ -339,19 +370,60 @@
         }, opts.resumeDelay);
       }
 
-      // Only genuine user interaction pauses/resumes autoplay. Swiper fires
-      // transitionStart/transitionEnd for internal reasons too (loop
-      // repositioning, momentum settling after our own setTranslate calls),
-      // not just user-triggered slide changes — listening to those caused a
-      // pause/resume race that could starve autoplay indefinitely. Drag and
-      // explicit nav/dot clicks are unambiguous, so hook those directly.
-      swiper.on("touchStart", function () { dragging = true; pause(); });
-      swiper.on("touchEnd", function () { dragging = false; scheduleResume(); });
-      if (prevBtn) prevBtn.addEventListener("click", function () { pause(); scheduleResume(); });
-      if (nextBtn) nextBtn.addEventListener("click", function () { pause(); scheduleResume(); });
-      if (dotsEl) dotsEl.addEventListener("click", function (e) {
-        if (e.target.closest(".swiper-pagination-bullet")) { pause(); scheduleResume(); }
+      // Genuine user interaction pauses autoplay: drag start and explicit
+      // nav/dot clicks. Resuming waits for Embla's own "settle" event — the
+      // same physics-settled signal Shopify's theme resumes on — instead of
+      // starting the resume-delay hold the instant you let go or click.
+      // Embla's own release momentum (data-snap="false") or snap/scrollTo
+      // animation (arrows, dots, data-snap="true") is still actively moving
+      // the carousel for a while after that instant; starting our hold timer
+      // early enough to resume before that motion is done would have our own
+      // per-frame nudging fight Embla's still-running animation for control
+      // of the same transform.
+      embla.on("pointerDown", function () {
+        dragging = true;
+        root.classList.add("is-dragging");
+        pause();
       });
+      embla.on("pointerUp", function () {
+        dragging = false;
+        root.classList.remove("is-dragging");
+      });
+      embla.on("settle", function () {
+        if (!playing && !dragging) scheduleResume();
+      });
+      if (prevBtn) prevBtn.addEventListener("click", function () { embla.scrollPrev(); pause(); });
+      if (nextBtn) nextBtn.addEventListener("click", function () { embla.scrollNext(); pause(); });
+
+      // Arrows: disable at the ends when not looping (loop mode can always
+      // scroll further, so they stay enabled).
+      function syncArrows() {
+        if (!prevBtn && !nextBtn) return;
+        if (prevBtn) prevBtn.disabled = !embla.canScrollPrev();
+        if (nextBtn) nextBtn.disabled = !embla.canScrollNext();
+      }
+      embla.on("select", syncArrows).on("init", syncArrows).on("reInit", syncArrows);
+      syncArrows();
+
+      // Dots: Embla ships no pagination UI (unlike Swiper) — build bullets
+      // straight off its scroll-snap list and keep the active one in sync.
+      if (dotsEl) {
+        var dotEls = embla.scrollSnapList().map(function (_, i) {
+          var dot = document.createElement("button");
+          dot.type = "button";
+          dot.className = "sqcc-sb-dot";
+          dot.setAttribute("aria-label", "Go to slide " + (i + 1));
+          dot.addEventListener("click", function () { embla.scrollTo(i); pause(); });
+          dotsEl.appendChild(dot);
+          return dot;
+        });
+        var syncDots = function () {
+          var selected = embla.selectedScrollSnap();
+          dotEls.forEach(function (dot, i) { dot.classList.toggle("is-active", i === selected); });
+        };
+        embla.on("select", syncDots);
+        syncDots();
+      }
 
       root.addEventListener("mouseenter", function () { hovering = true; });
       root.addEventListener("mouseleave", function () {
@@ -363,42 +435,54 @@
       });
 
       var last = performance.now();
-      var houseKeepingCounter = 0;
       function frame(now) {
-        var dt = Math.min(0.05, (now - last) / 1000);
+        var dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
         last = now;
-        if (playing && !dragging && !swiper.animating && !(opts.pauseOnHover && hovering)) {
-          // Only setTranslate needs to run every frame — it's a transform,
-          // cheap and GPU-composited. updateProgress/updateActiveIndex/
-          // updateSlidesClasses walk every slide (16+ once padded for loop)
-          // to update classes for pagination/accessibility; doing that at
-          // full frame rate was expensive enough that the browser couldn't
-          // sustain the display's refresh rate and settled into presenting
-          // at half of it — visible as a steady stutter, not just a glitch
-          // at the loop boundary. A ~10/sec refresh is imperceptible for
-          // "which dot is active" but cuts that cost by ~85%.
-          swiper.setTranslate(swiper.translate + dir * opts.speed * dt);
-          houseKeepingCounter++;
-          if (houseKeepingCounter >= 6) {
-            houseKeepingCounter = 0;
-            swiper.updateProgress();
-            swiper.updateActiveIndex();
-            swiper.updateSlidesClasses();
+        if (playing && !dragging && !(opts.pauseOnHover && hovering)) {
+          // Reach directly into Embla's internal engine, same as Shopify's
+          // own auto-scrolling rails: nudge the scroll location, keep the
+          // target in sync so nothing fights it on the next user
+          // interaction, let Embla's own loop/slide-loop bookkeeping
+          // reposition anything that crossed a boundary, then force an
+          // immediate (non-eased) render. This is the whole reason the
+          // marquee doesn't stutter — Embla's public scrollTo()/settle path
+          // is built for occasional discrete moves, not a continuous nudge
+          // every frame, and driving it only through that public API fights
+          // it instead of cooperating with it. animation.render(1) is the
+          // same "flush to the DOM now" step Embla's own drag loop uses
+          // internally, called with alpha=1 (fully caught up, no lag) so it
+          // never falls behind our own per-frame nudges the way starting
+          // Embla's self-paced animation loop would.
+          var engine = embla.internalEngine();
+          engine.location.add(dirSign * opts.speed * dt);
+          engine.target.set(engine.location);
+          if (opts.loop) {
+            engine.scrollLooper.loop(dirSign);
+            engine.slideLooper.loop();
+          } else {
+            // No loop buffer to fall back on: stop cleanly at the edge
+            // instead of scrolling on into blank space forever.
+            var pos = engine.location.get();
+            if (pos <= engine.limit.min || pos >= engine.limit.max) {
+              engine.location.set(engine.limit.constrain(pos));
+              engine.target.set(engine.location);
+              pause();
+            }
           }
-          // loopFix() re-centers the clone buffer around the current
-          // position — necessary once we approach the edge of what's been
-          // cloned, but NOT safe to call unconditionally: it visibly
-          // renormalizes translate on every call (not just when actually
-          // needed), which fights our own incremental nudge and shows up as
-          // a stutter/cut. Only call it once translate actually reaches the
-          // measured bounds, same trigger Swiper's own drag path uses.
-          if (opts.loop && (swiper.translate < swiper.maxTranslate() || swiper.translate > swiper.minTranslate())) {
-            swiper.loopFix();
-          }
+          engine.animation.render(1);
         }
         requestAnimationFrame(frame);
       }
       requestAnimationFrame(frame);
+
+      // Click-through prevention: a drag release should never fire a link's
+      // click, only a genuine tap/click — Embla exposes exactly that
+      // distinction itself.
+      Array.prototype.forEach.call(containerEl.querySelectorAll("a.sqcc-sb-slide-inner"), function (link) {
+        link.addEventListener("click", function (e) {
+          if (!embla.clickAllowed()) { e.preventDefault(); e.stopImmediatePropagation(); }
+        });
+      });
 
       root.classList.add("is-ready");
     }
@@ -423,7 +507,7 @@
     }
 
     configEl.dataset.sqccReady = "1";
-    ensureSwiper(function () { build(configEl, opts, slidesData); });
+    ensureEmbla(function () { build(configEl, opts, slidesData); });
   }
 
   function initAll() {
@@ -449,7 +533,10 @@
   }
 
   function padForLoop(data) {
-    var MIN_SLIDES = 16;
+    // Half of the old threshold: the real slide set gets duplicated once
+    // more in initEmbla() for the continuous-scroll DOM buffer, so this only
+    // needs to get small galleries up to a reasonable *pre-doubling* count.
+    var MIN_SLIDES = 8;
     if (!data.length || data.length >= MIN_SLIDES) return data;
     var out = [];
     var i = 0;
