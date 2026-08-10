@@ -428,15 +428,24 @@
     findReels().forEach(function (pair) { initOne(pair.section, pair.reel); });
   }
 
-  // Reel galleries can render a tick after DOMContentLoaded — retry briefly.
+  // Reel galleries can render a tick after DOMContentLoaded, and whether one
+  // is *enabled* depends on Squarespace's own separate custom.css having
+  // loaded — which can lag well behind this script, unlike scrolling-banner's
+  // Code Block marker (present in the initial DOM, no external stylesheet to
+  // wait on). findReels() already filters to currently-enabled reels, so
+  // "pending" has to be checked against every .gallery-reel in the DOM, not
+  // just the ones findReels() currently recognizes — a reel isn't enabled
+  // yet is exactly the case that needs another retry, not "nothing to do."
   function initWithRetry() {
     initAll();
     var tries = 0;
     var iv = setInterval(function () {
-      var pending = findReels().some(function (pair) { return !pair.reel.dataset.sqccReady; });
-      if (!pending || ++tries > 20) { clearInterval(iv); return; }
+      var pending = Array.prototype.some.call(document.querySelectorAll(".gallery-reel"), function (reel) {
+        return !reel.dataset.sqccReady;
+      });
+      if (!pending || ++tries > 40) { clearInterval(iv); return; }
       initAll();
-    }, 200);
+    }, 250);
   }
 
   function ready(fn) {
