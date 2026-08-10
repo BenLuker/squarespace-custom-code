@@ -2,8 +2,8 @@
 
 Adds continuous auto-scroll and momentum drag to Squarespace's native
 **Gallery Section → Slideshow: Reel** — no Code Block, no separate gallery
-setup, nothing to wire up per page. You opt a Reel section in with one CSS
-class in its own Section settings, and it becomes a continuously
+setup, nothing to wire up per page. You opt a Reel section in with one line
+of CSS in the site-wide Custom CSS panel, and it becomes a continuously
 auto-scrolling, drag-to-scrub image ribbon.
 
 ## Why this exists
@@ -42,46 +42,70 @@ needed — no extra tag, and no separate CSS file for it (Embla is headless).
 
 ## Opt a section in
 
+Not every Squarespace plan/template exposes a per-Section "Custom CSS
+Class" field, so this doesn't depend on one. Instead, every Section
+Squarespace renders already carries its own stable `data-section-id`
+attribute — you find that ID once and write one scoped CSS rule for it in
+the **site-wide** Custom CSS panel.
+
 1. Add a **Gallery Section** to a page (or use an existing one) and set its
    design to **Slideshow: Reel** — the ordinary Squarespace way, no code
    involved yet.
-2. Open the section's editor → **Design** (or wherever your template
-   exposes it) → find **Custom CSS Class** → add `sqcc-reel-auto`.
-3. Save. On page load, the plugin finds that class, hides the native Reel,
-   and replaces it with the auto-scrolling ribbon in the same spot.
+2. Find the section's ID: on the published page, right-click the section →
+   **Inspect** → look for `data-section-id="..."` on the `.page-section`
+   element (the section's outermost wrapper). Copy that value.
+3. Go to **Design → Custom CSS** (site-wide, not the per-page Code
+   Injection) and add:
 
-Every other Reel gallery on the site — any section without that class —
-is left completely untouched, native Squarespace behavior.
+   ```css
+   [data-section-id="PASTE-THE-ID-HERE"] {
+     --sqcc-reel-auto: 1;
+   }
+   ```
+4. Save. On page load, the plugin finds that custom property, hides the
+   native Reel in that section, and replaces it with the auto-scrolling
+   ribbon in the same spot.
 
-To go back to the native Reel on a section, just remove the class.
+Every other Reel gallery on the site — any section without that rule — is
+left completely untouched, native Squarespace behavior.
 
-## Configure (extra classes in the same field)
+To go back to the native Reel on a section, just delete its rule.
+
+> A `sqcc-reel-auto` CSS **class** on the section works too, if your
+> template does expose a Custom CSS Class field — either mechanism opts a
+> section in, so use whichever is available to you.
+
+## Configure (more properties in the same rule)
 
 Squarespace sections can't carry `data-*` attributes or a config Code Block
-the way a Code Block widget can, so every option is a second class added
-next to `sqcc-reel-auto` in the same **Custom CSS Class** field, space
-separated:
+the way a Code Block widget can, so every option is another CSS custom
+property in that same scoped rule:
 
-```
-sqcc-reel-auto sqcc-reel-speed-90 sqcc-reel-dir-right sqcc-reel-dots
+```css
+[data-section-id="PASTE-THE-ID-HERE"] {
+  --sqcc-reel-auto: 1;
+  --sqcc-reel-speed: 90;
+  --sqcc-reel-dir: right;
+  --sqcc-reel-dots: 1;
+}
 ```
 
-| Class | Default | Meaning |
+| Property | Default | Meaning |
 | --- | --- | --- |
-| `sqcc-reel-auto` | — | **Required.** Turns this Reel section into an auto-scrolling ribbon. |
-| `sqcc-reel-speed-N` | `60` | Auto-scroll speed, px/second. |
-| `sqcc-reel-dir-right` | *(left)* | Scroll right instead of left. |
-| `sqcc-reel-gap-N` | `16` | Space between images, px. |
-| `sqcc-reel-radius-N` | `8` | Image corner radius, px. |
-| `sqcc-reel-align-center` | *(left)* | Where a scrubbed/arrowed image anchors. `sqcc-reel-align-right` also valid. |
-| `sqcc-reel-no-snap` | *(snap on)* | Release glides to a stop via momentum instead of snapping to the nearest image. |
-| `sqcc-reel-no-drag` | *(drag on)* | Disable click-and-drag scrubbing. |
-| `sqcc-reel-no-autoplay` | *(autoplay on)* | Ribbon layout and drag only — no continuous auto-scroll. |
-| `sqcc-reel-no-controls` | *(arrows on)* | Hide the hover prev/next arrows. |
-| `sqcc-reel-dots` | *(off)* | Show clickable pagination dots under the ribbon. |
-| `sqcc-reel-no-pause-hover` | *(pause on)* | Keep auto-scrolling while the pointer is over the ribbon. |
-| `sqcc-reel-resume-N` | `2500` | Ms to hold, once drag/snap motion settles, before auto-scroll resumes. |
-| `sqcc-reel-fade` | *(off)* | Fade the left/right edges. |
+| `--sqcc-reel-auto` | — | **Required.** `1` turns this Reel section into an auto-scrolling ribbon. |
+| `--sqcc-reel-speed` | `60` | Auto-scroll speed, px/second. |
+| `--sqcc-reel-dir` | `left` | Set to `right` to scroll right instead. |
+| `--sqcc-reel-gap` | `16` | Space between images, px. |
+| `--sqcc-reel-radius` | `8` | Image corner radius, px. |
+| `--sqcc-reel-align` | `left` | Where a scrubbed/arrowed image anchors. `center` or `right` also valid. |
+| `--sqcc-reel-snap` | `1` | Set to `0` for a free momentum glide on release instead of snapping to the nearest image. |
+| `--sqcc-reel-drag` | `1` | Set to `0` to disable click-and-drag scrubbing. |
+| `--sqcc-reel-autoplay` | `1` | Set to `0` for ribbon layout and drag only — no continuous auto-scroll. |
+| `--sqcc-reel-controls` | `1` | Set to `0` to hide the hover prev/next arrows. |
+| `--sqcc-reel-dots` | `0` | Set to `1` to show clickable pagination dots under the ribbon. |
+| `--sqcc-reel-pause-hover` | `1` | Set to `0` to keep auto-scrolling while the pointer is over the ribbon. |
+| `--sqcc-reel-resume` | `2500` | Ms to hold, once drag/snap motion settles, before auto-scroll resumes. |
+| `--sqcc-reel-fade` | `0` | Set to `1` to fade the left/right edges. |
 
 Full-bleed vs. inset width and the ribbon's height both carry over
 automatically from whatever the Section's own **Section Height** and
@@ -92,11 +116,11 @@ automatically from whatever the Section's own **Section Height** and
 Same physics as scrolling-banner, applied here too:
 
 - **Auto-scroll:** continuous, paused while dragging or (unless
-  `sqcc-reel-no-pause-hover`) hovered.
+  `--sqcc-reel-pause-hover: 0`) hovered.
 - **Drag:** press and drag horizontally to scrub. Auto-scroll holds for
-  `sqcc-reel-resume-N` *after* the release's own snap/glide motion finishes
-  settling — never the instant you let go, so it can't fight an in-flight
-  release animation.
+  `--sqcc-reel-resume` ms *after* the release's own snap/glide motion
+  finishes settling — never the instant you let go, so it can't fight an
+  in-flight release animation.
 - **Click a linked image:** a drag never triggers a click.
 - **Reduced motion:** if the visitor's OS is set to reduce motion,
   auto-scroll defaults off (drag and arrows still work).
@@ -117,7 +141,7 @@ Same physics as scrolling-banner, applied here too:
 | --- | --- |
 | `reel-autoscroll.css` | HEADER (`<link>`) |
 | `reel-autoscroll.js` | FOOTER (`<script defer>`) |
-| `sqcc-reel-auto` (+ option classes) | Section's own Custom CSS Class field |
+| `--sqcc-reel-auto: 1;` (+ options) | Design → Custom CSS, scoped to `[data-section-id="..."]` |
 
 `demo.html` is for local preview only — it mocks Squarespace's own Reel
 markup so the plugin has something to detect without a live site.

@@ -14,26 +14,32 @@
  *   FOOTER: <script src=".../reel-autoscroll.js" defer></script>
  *
  * OPT IN, PER SECTION
- *   Squarespace has no way to add data-* attributes or a config element to a
- *   native Section, so configuration is encoded as extra CSS classes in the
- *   Section's own "Custom CSS Class" field (Section editor → Design):
+ *   Not every Squarespace plan/template exposes a per-Section "Custom CSS
+ *   Class" field, so targeting doesn't depend on one. Every Section
+ *   Squarespace renders already carries a stable data-section-id attribute
+ *   of its own — find it once (right-click the section → Inspect → look for
+ *   data-section-id="..." on the .page-section element) and write a scoped
+ *   rule for it in Design → Custom CSS (site-wide, not per page):
  *
- *     sqcc-reel-auto                 required — turns this Reel into a ribbon
- *     sqcc-reel-speed-80              auto-scroll speed, px/sec (default 60)
- *     sqcc-reel-dir-right             scroll right instead of left (default left)
- *     sqcc-reel-gap-24                space between images, px (default 16)
- *     sqcc-reel-radius-12             image corner radius, px (default 8)
- *     sqcc-reel-align-center          sqcc-reel-align-right also valid (default left)
- *     sqcc-reel-no-snap               free momentum glide on release, no snap
- *     sqcc-reel-no-drag               disable click-drag scrubbing
- *     sqcc-reel-no-autoplay           layout + drag only, no auto-scroll
- *     sqcc-reel-no-controls           hide the prev/next arrows
- *     sqcc-reel-dots                  show pagination dots (default off)
- *     sqcc-reel-no-pause-hover        keep auto-scrolling while hovered
- *     sqcc-reel-resume-1000           ms to hold after motion settles (default 2500)
- *     sqcc-reel-fade                  fade the left/right edges
+ *     [data-section-id="6a778eef67351664a18b3ad6"] {
+ *       --sqcc-reel-auto: 1;       required — turns this Reel into a ribbon
+ *       --sqcc-reel-speed: 80;     auto-scroll speed, px/sec (default 60)
+ *       --sqcc-reel-dir: right;    scroll right instead of left (default left)
+ *       --sqcc-reel-gap: 24;       space between images, px (default 16)
+ *       --sqcc-reel-radius: 12;    image corner radius, px (default 8)
+ *       --sqcc-reel-align: center; or "right" (default left)
+ *       --sqcc-reel-snap: 0;       0 = free momentum glide, no snap (default 1)
+ *       --sqcc-reel-drag: 0;       0 = disable click-drag scrubbing (default 1)
+ *       --sqcc-reel-autoplay: 0;   0 = layout + drag only, no auto-scroll (default 1)
+ *       --sqcc-reel-controls: 0;   0 = hide the prev/next arrows (default 1)
+ *       --sqcc-reel-dots: 1;       show pagination dots (default 0)
+ *       --sqcc-reel-pause-hover: 0; 0 = keep scrolling while hovered (default 1)
+ *       --sqcc-reel-resume: 1000;  ms to hold after motion settles (default 2500)
+ *       --sqcc-reel-fade: 1;       fade the left/right edges (default 0)
+ *     }
  *
- *   Example: "sqcc-reel-auto sqcc-reel-speed-80 sqcc-reel-dir-right sqcc-reel-dots"
+ *   A .sqcc-reel-auto CSS class on the section works too, for templates that
+ *   do expose a Custom CSS Class field — either mechanism opts a section in.
  *
  * See ./README.md for the full option table and setup steps.
  */
@@ -48,29 +54,53 @@
   var ENABLE_CLASS = "sqcc-reel-auto";
 
   /* =========================================================================
-   * CONFIG — parsed from extra classes on the same element as ENABLE_CLASS
+   * CONFIG — CSS custom properties scoped to the section via
+   * [data-section-id="..."] in the site-wide Custom CSS panel, since not
+   * every plan/template exposes a per-Section "Custom CSS Class" field to
+   * use classes for this instead.
    * ========================================================================= */
-  function parseConfig(marker) {
-    var cls = " " + marker.className + " ";
-    function has(token) { return cls.indexOf(" " + token + " ") !== -1; }
-    function num(prefix, fallback) {
-      var m = cls.match(new RegExp("\\s" + prefix + "-(\\d+(?:\\.\\d+)?)\\s"));
-      return m ? parseFloat(m[1]) : fallback;
+  var VAR_PREFIX = "--sqcc-reel-";
+
+  function cssVar(styles, name) {
+    return styles.getPropertyValue(VAR_PREFIX + name).trim();
+  }
+
+  function isEnabled(section, styles) {
+    if (section.classList.contains(ENABLE_CLASS)) return true; // class still works where available
+    var v = cssVar(styles, "auto");
+    return v === "1" || v === "true";
+  }
+
+  function parseConfig(styles) {
+    function str(name, fallback) { var v = cssVar(styles, name); return v || fallback; }
+    function num(name, fallback) {
+      var v = cssVar(styles, name);
+      var n = parseFloat(v);
+      return v !== "" && !isNaN(n) ? n : fallback;
     }
+    // "flag" options default true (e.g. controls, drag) and are turned off
+    // with 0/false; direction/align/dots/fade default false/off and are
+    // turned on with 1/true. Each call below picks the right default.
+    function flag(name, defaultValue) {
+      var v = cssVar(styles, name);
+      if (v === "") return defaultValue;
+      return v === "1" || v === "true";
+    }
+    var align = str("align", "left");
     return {
-      speed: num("sqcc-reel-speed", 60),
-      direction: has("sqcc-reel-dir-right") ? "right" : "left",
-      gap: num("sqcc-reel-gap", 16),
-      radius: num("sqcc-reel-radius", 8),
-      align: has("sqcc-reel-align-center") ? "center" : has("sqcc-reel-align-right") ? "right" : "left",
-      snap: !has("sqcc-reel-no-snap"),
-      drag: !has("sqcc-reel-no-drag"),
-      autoplay: !has("sqcc-reel-no-autoplay"),
-      controls: !has("sqcc-reel-no-controls"),
-      dots: has("sqcc-reel-dots"),
-      pauseOnHover: !has("sqcc-reel-no-pause-hover"),
-      resumeDelay: num("sqcc-reel-resume", 2500),
-      fadeEdges: has("sqcc-reel-fade"),
+      speed: num("speed", 60),
+      direction: str("dir", "left") === "right" ? "right" : "left",
+      gap: num("gap", 16),
+      radius: num("radius", 8),
+      align: align === "center" || align === "right" ? align : "left",
+      snap: flag("snap", true),
+      drag: flag("drag", true),
+      autoplay: flag("autoplay", true),
+      controls: flag("controls", true),
+      dots: flag("dots", false),
+      pauseOnHover: flag("pause-hover", true),
+      resumeDelay: num("resume", 2500),
+      fadeEdges: flag("fade", false),
     };
   }
 
@@ -79,12 +109,12 @@
    * ========================================================================= */
   function findReels() {
     var out = [];
-    var seen = [];
-    Array.prototype.forEach.call(document.querySelectorAll("." + ENABLE_CLASS), function (marker) {
-      var reel = marker.classList.contains("gallery-reel") ? marker : marker.querySelector(".gallery-reel");
-      if (!reel || seen.indexOf(reel) !== -1) return;
-      seen.push(reel);
-      out.push({ marker: marker, reel: reel });
+    Array.prototype.forEach.call(document.querySelectorAll(".gallery-reel"), function (reel) {
+      var section = reel.closest("[data-section-id]") || reel.closest(".page-section");
+      if (!section) return;
+      var styles = getComputedStyle(section);
+      if (!isEnabled(section, styles)) return;
+      out.push({ section: section, reel: reel });
     });
     return out;
   }
@@ -167,7 +197,7 @@
     setTimeout(function () { if (!done) { done = true; cb(); } }, 3000); // never wait forever
   }
 
-  function replaceReel(section, marker, reel, opts, imagesData) {
+  function replaceReel(section, reel, opts, imagesData) {
     var single = imagesData.length <= 1;
     var loop = opts.autoplay && !single;
     // Only pad the slide set when it'll actually loop — padding (repeating
@@ -244,8 +274,9 @@
       root.style.marginLeft = -left + "px";
     };
 
-    // Hide (not remove) the native gallery — reversible by just dropping the
-    // opt-in class — and insert our replacement in its place.
+    // Hide (not remove) the native gallery — reversible by just deleting the
+    // section's --sqcc-reel-auto CSS rule — and insert our replacement in
+    // its place.
     var galleryWrapper = reel.closest(".gallery") || reel;
     galleryWrapper.style.display = "none";
     galleryWrapper.parentNode.insertBefore(root, galleryWrapper.nextSibling);
@@ -382,20 +413,19 @@
   /* =========================================================================
    * INIT
    * ========================================================================= */
-  function initOne(marker, reel) {
+  function initOne(section, reel) {
     if (reel.dataset.sqccReady) return;
     reel.dataset.sqccReady = "1";
 
-    var section = marker.closest(".page-section") || marker;
-    var opts = parseConfig(marker);
+    var opts = parseConfig(getComputedStyle(section));
     var imagesData = collectImages(reel);
     if (!imagesData.length) return;
 
-    ensureEmbla(function () { replaceReel(section, marker, reel, opts, imagesData); });
+    ensureEmbla(function () { replaceReel(section, reel, opts, imagesData); });
   }
 
   function initAll() {
-    findReels().forEach(function (pair) { initOne(pair.marker, pair.reel); });
+    findReels().forEach(function (pair) { initOne(pair.section, pair.reel); });
   }
 
   // Reel galleries can render a tick after DOMContentLoaded — retry briefly.

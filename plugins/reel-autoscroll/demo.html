@@ -29,6 +29,20 @@
        rendered. It's reproduced here only so the demo has something to detect
        and replace without a live Squarespace page. */
     .gallery-reel-item { display: none; } /* the plugin reads their <img>s, not their layout */
+
+    /* On the real site this goes in Design → Custom CSS (site-wide), scoped
+       to each section's own data-section-id — reproduced here only so the
+       demo has something to opt sections in with. --sqcc-reel-auto: 1 is the
+       one required property; everything else is an optional override. */
+    [data-section-id="demo-section-1"] { --sqcc-reel-auto: 1; }
+    [data-section-id="demo-section-2"] {
+      --sqcc-reel-auto: 1;
+      --sqcc-reel-speed: 90;
+      --sqcc-reel-dir: right;
+      --sqcc-reel-dots: 1;
+      --sqcc-reel-controls: 0;
+      --sqcc-reel-radius: 16;
+    }
   </style>
 </head>
 <body>
@@ -37,18 +51,20 @@
     <h1>reel-autoscroll</h1>
     <p class="note">
       Mimics two native Squarespace "Slideshow: Reel" gallery sections below.
-      The plugin finds anything carrying <code>sqcc-reel-auto</code> (the
-      class an editor would add via the Section's own Custom CSS Class
-      field), hides the native reel, and replaces it with a continuously
-      auto-scrolling, drag-to-scrub ribbon built on Embla.
+      The plugin finds every <code>.gallery-reel</code>, checks its
+      section's own <code>data-section-id</code> for a
+      <code>--sqcc-reel-auto: 1</code> CSS custom property (set via a scoped
+      rule in Design → Custom CSS on the real site — see the &lt;style&gt;
+      block above), hides the native reel, and replaces it with a
+      continuously auto-scrolling, drag-to-scrub ribbon built on Embla.
     </p>
     <p class="note">
-      <strong>Section 1</strong>: just <code>sqcc-reel-auto</code> — every
-      other option stays at its default.
+      <strong>Section 1</strong>: just <code>--sqcc-reel-auto: 1</code> —
+      every other option stays at its default.
     </p>
   </div>
 
-  <section class="page-section gallery-section full-bleed-section sqcc-reel-auto">
+  <section class="page-section gallery-section full-bleed-section" data-section-id="demo-section-1">
     <div class="gallery gallery-section-wrapper">
       <div class="gallery-reel" data-controller="GalleryReel" data-props='{"isCropping": false, "controlsLocation": "side", "viewportHeight": 55, "width": "full-bleed"}'>
         <div class="gallery-reel-list">
@@ -64,16 +80,14 @@
 
   <div class="demo-col">
     <p class="note" style="margin-top: 2.5rem;">
-      <strong>Section 2</strong>: <code>sqcc-reel-auto sqcc-reel-speed-90
-      sqcc-reel-dir-right sqcc-reel-dots sqcc-reel-no-controls
-      sqcc-reel-radius-16</code> — faster, scrolls right, dots instead of
+      <strong>Section 2</strong>: speed 90, scrolls right, dots instead of
       arrows, rounded corners, and set to an inset (not full-bleed) width to
       confirm the ribbon respects that too.
     </p>
   </div>
 
   <div class="demo-col">
-    <section class="page-section gallery-section sqcc-reel-auto sqcc-reel-speed-90 sqcc-reel-dir-right sqcc-reel-dots sqcc-reel-no-controls sqcc-reel-radius-16">
+    <section class="page-section gallery-section" data-section-id="demo-section-2">
       <div class="gallery gallery-section-wrapper">
         <div class="gallery-reel" data-controller="GalleryReel" data-props='{"isCropping": false, "controlsLocation": "side", "viewportHeight": 40, "width": "inset"}'>
           <div class="gallery-reel-list">
